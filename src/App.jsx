@@ -134,80 +134,41 @@ const [pin, setPin] = useState("");
   });
 
   useEffect(() => {
+    if (!loggedUser) return;
+
     fetchExpenses();
 
     const interval = setInterval(() => {
       fetchExpenses(false);
     }, 5000);
-function login(e) {
-  e.preventDefault();
 
-  if (users[loginName] === pin) {
-    localStorage.setItem("loggedUser", loginName);
-    setLoggedUser(loginName);
-    setForm((prev) => ({
-      ...prev,
-      person: loginName,
-    }));
-  } else {
-    alert("PIN hatalı.");
-  }
-}
-
-function logout() {
-  localStorage.removeItem("loggedUser");
-  setLoggedUser(null);
-  setPin("");
-}
-if (!loggedUser) {
-  return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-icon">💛</div>
-
-        <h1>Aile Kasası</h1>
-        <p>Mustafa ve Begüm için güvenli giriş</p>
-
-        <form onSubmit={login}>
-          <label>Kim giriş yapıyor?</label>
-
-          <div className="choice-row">
-            <button
-              type="button"
-              className={loginName === "Mustafa" ? "choice active" : "choice"}
-              onClick={() => setLoginName("Mustafa")}
-            >
-              Mustafa
-            </button>
-
-            <button
-              type="button"
-              className={loginName === "Begüm" ? "choice active" : "choice"}
-              onClick={() => setLoginName("Begüm")}
-            >
-              Begüm
-            </button>
-          </div>
-
-          <label>PIN</label>
-          <input
-            type="password"
-            inputMode="numeric"
-            placeholder="4 haneli PIN"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-          />
-
-          <button className="login-button" type="submit">
-            Giriş Yap
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
     return () => clearInterval(interval);
-  }, []);
+  }, [loggedUser]);
+
+  function login(e) {
+    e.preventDefault();
+
+    if (users[loginName] === pin) {
+      localStorage.setItem("loggedUser", loginName);
+      setLoggedUser(loginName);
+      setPin("");
+      setForm((prev) => ({
+        ...prev,
+        person: loginName,
+      }));
+    } else {
+      alert("PIN hatalı.");
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("loggedUser");
+    setLoggedUser(null);
+    setPin("");
+    setExpenses([]);
+    setActivePage("add");
+    resetForm("Mustafa");
+  }
 
   async function fetchExpenses(showLoading = true) {
     if (showLoading) setLoading(true);
@@ -292,14 +253,14 @@ if (!loggedUser) {
       }));
   }, [expenses]);
 
-  function resetForm() {
+  function resetForm(personName = loggedUser || "Mustafa") {
     setEditingId(null);
     setForm({
       date: new Date().toISOString().slice(0, 10),
       title: "",
       amount: "",
       category: "Market",
-      person: "Mustafa",
+      person: personName,
       payment: "Kart",
       isInstallment: false,
       installmentCount: "2",
@@ -432,6 +393,54 @@ if (!loggedUser) {
     setDeleteTarget(null);
   }
 
+  if (!loggedUser) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <div className="login-icon">💛</div>
+
+          <h1>Aile Kasası</h1>
+          <p>Mustafa ve Begüm için güvenli giriş</p>
+
+          <form onSubmit={login}>
+            <label>Kim giriş yapıyor?</label>
+
+            <div className="choice-row">
+              <button
+                type="button"
+                className={loginName === "Mustafa" ? "choice active" : "choice"}
+                onClick={() => setLoginName("Mustafa")}
+              >
+                Mustafa
+              </button>
+
+              <button
+                type="button"
+                className={loginName === "Begüm" ? "choice active" : "choice"}
+                onClick={() => setLoginName("Begüm")}
+              >
+                Begüm
+              </button>
+            </div>
+
+            <label>PIN</label>
+            <input
+              type="password"
+              inputMode="numeric"
+              placeholder="4 haneli PIN"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+            />
+
+            <button className="login-button" type="submit">
+              Giriş Yap
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="app">
@@ -445,7 +454,7 @@ if (!loggedUser) {
 
   return (
     <div className="app">
-      <header className="header">
+      <header className="header app-header">
   <div>
     <p className="subtitle">{loggedUser} olarak giriş yapıldı</p>
     <h1>Aile Harcama Takibi</h1>
