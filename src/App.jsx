@@ -103,6 +103,17 @@ function mapToDb(item) {
 }
 
 function App() {
+  const users = {
+  Mustafa: "1203",
+  Begüm: "6824",
+};
+
+const [loggedUser, setLoggedUser] = useState(() => {
+  return localStorage.getItem("loggedUser") || null;
+});
+
+const [loginName, setLoginName] = useState("Mustafa");
+const [pin, setPin] = useState("");
   const [activePage, setActivePage] = useState("add");
   const [editingId, setEditingId] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(getMonthKey(new Date()));
@@ -116,7 +127,7 @@ function App() {
     title: "",
     amount: "",
     category: "Market",
-    person: "Mustafa",
+    person: loggedUser || "Mustafa",
     payment: "Kart",
     isInstallment: false,
     installmentCount: "2",
@@ -128,7 +139,73 @@ function App() {
     const interval = setInterval(() => {
       fetchExpenses(false);
     }, 5000);
+function login(e) {
+  e.preventDefault();
 
+  if (users[loginName] === pin) {
+    localStorage.setItem("loggedUser", loginName);
+    setLoggedUser(loginName);
+    setForm((prev) => ({
+      ...prev,
+      person: loginName,
+    }));
+  } else {
+    alert("PIN hatalı.");
+  }
+}
+
+function logout() {
+  localStorage.removeItem("loggedUser");
+  setLoggedUser(null);
+  setPin("");
+}
+if (!loggedUser) {
+  return (
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-icon">💛</div>
+
+        <h1>Aile Kasası</h1>
+        <p>Mustafa ve Begüm için güvenli giriş</p>
+
+        <form onSubmit={login}>
+          <label>Kim giriş yapıyor?</label>
+
+          <div className="choice-row">
+            <button
+              type="button"
+              className={loginName === "Mustafa" ? "choice active" : "choice"}
+              onClick={() => setLoginName("Mustafa")}
+            >
+              Mustafa
+            </button>
+
+            <button
+              type="button"
+              className={loginName === "Begüm" ? "choice active" : "choice"}
+              onClick={() => setLoginName("Begüm")}
+            >
+              Begüm
+            </button>
+          </div>
+
+          <label>PIN</label>
+          <input
+            type="password"
+            inputMode="numeric"
+            placeholder="4 haneli PIN"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+          />
+
+          <button className="login-button" type="submit">
+            Giriş Yap
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
     return () => clearInterval(interval);
   }, []);
 
@@ -369,11 +446,15 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <div>
-          <p className="subtitle">Mustafa & Begüm</p>
-          <h1>Aile Harcama Takibi</h1>
-        </div>
-      </header>
+  <div>
+    <p className="subtitle">{loggedUser} olarak giriş yapıldı</p>
+    <h1>Aile Harcama Takibi</h1>
+  </div>
+
+  <button className="logout-btn" onClick={logout}>
+    Çıkış
+  </button>
+</header>
 
       {activePage === "add" && (
         <section className="list-card">
