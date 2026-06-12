@@ -526,3 +526,15 @@ button.danger,
   color: #657089;
   flex-shrink: 0;
 }
+.login-card h1 {
+  color: #13213c !important;
+  -webkit-text-fill-color: #13213c !important;
+  opacity: 1 !important;
+  font-weight: 800;
+}
+
+.login-card p {
+  color: #657089 !important;
+  -webkit-text-fill-color: #657089 !important;
+  opacity: 1 !important;
+}
