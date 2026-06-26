@@ -22,7 +22,13 @@ export default function App() {
       const json = await res.json();
 
       if (json.success) {
-        setNews(json.data);
+        setNews(
+  json.data
+    .filter((item) => item.disclosureType !== "FON")
+    .sort((a, b) => {
+      return analyzeDisclosure(b).score - analyzeDisclosure(a).score;
+    })
+);
       }
     } catch (e) {
       console.log(e);
