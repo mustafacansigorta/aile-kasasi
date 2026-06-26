@@ -96,18 +96,21 @@ Bildirim No : {item.disclosureIndex}
 
                 <hr />
 
-                <pre
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    fontSize: 14,
-                  }}
-                >
-                  {JSON.stringify(
-                    selected.presentation,
-                    null,
-                    2
-                  )}
-                </pre>
+                <div className="detail-box">
+  <h4>📌 Özet</h4>
+  <p>{selected.summary?.tr || "Özet bulunamadı."}</p>
+
+  <h4>📄 Bildirim Bilgileri</h4>
+  <p><strong>Şirket:</strong> {selected.senderTitle}</p>
+  <p><strong>Konu:</strong> {selected.subject?.tr}</p>
+  <p><strong>Tarih:</strong> {selected.time}</p>
+
+  {selected.link && (
+    <a href={selected.link} target="_blank" rel="noreferrer">
+      KAP’ta Aç
+    </a>
+  )}
+</div>
               </>
             )}
 
