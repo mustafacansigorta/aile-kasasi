@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   try {
-    const response = await fetch("https://www.kap.org.tr/tr", {
+    const response = await fetch("https://www.kap.org.tr/tr/bildirim-sorgu", {
       method: "GET",
       headers: {
         "User-Agent":
@@ -11,10 +11,16 @@ export default async function handler(req, res) {
 
     const html = await response.text();
 
+    const matches = [...html.matchAll(/\/tr\/Bildirim\/(\d+)/g)];
+
+    const ids = [...new Set(matches.map((m) => m[1]))];
+
     return res.status(200).json({
-      success: response.ok,
+      success: true,
       status: response.status,
-      length: html.length,
+      htmlLength: html.length,
+      foundCount: ids.length,
+      ids: ids.slice(0, 30),
       sample: html.slice(0, 1000),
     });
   } catch (error) {
