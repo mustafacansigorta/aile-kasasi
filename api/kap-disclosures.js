@@ -13,50 +13,40 @@ export default async function handler(req, res) {
 
     const basicToken = Buffer.from(`${username}:${password}`).toString("base64");
 
-    const authHeaders = {
+    const headers = {
       Authorization: `Basic ${basicToken}`,
       Accept: "application/json",
     };
 
-    // 1. Son bildirim indexini al
-    const lastIndexResponse = await fetch(`${baseUrl}/lastDisclosureIndex`, {
+    const lastRes = await fetch(`${baseUrl}/lastDisclosureIndex`, {
       method: "GET",
-      headers: authHeaders,
+      headers,
     });
 
-    const lastIndexText = await lastIndexResponse.text();
+    const lastText = await lastRes.text();
 
-    if (!lastIndexResponse.ok) {
-      return res.status(lastIndexResponse.status).json({
+    if (!lastRes.ok) {
+      return res.status(lastRes.status).json({
         success: false,
         step: "lastDisclosureIndex",
-        raw: lastIndexText,
+        raw: lastText,
       });
     }
 
-    const lastIndexData = JSON.parse(lastIndexText);
-    const lastIndex = Number(lastIndexData.lastDisclosureIndex);
+    const lastData = JSON.parse(lastText);
+    const lastIndex = Number(lastData.lastDisclosureIndex);
 
-    if (!lastIndex) {
-      return res.status(500).json({
-        success: false,
-        error: "lastDisclosureIndex alınamadı.",
-        data: lastIndexData,
-      });
-    }
-
-    // 2. Son 50 bildirim için geriye doğru başlangıç indexi
     const startIndex = Math.max(lastIndex - 50, 1);
 
-    const disclosuresUrl =
-      `${baseUrl}/disclosures?disclosureIndex=${startIndex}`;
+    const disclosuresRes = await fetch(
+      `${baseUrl}/disclosures?disclosureIndex=${startIndex}`,
+      {
+        method: "GET",
+        headers,
+      }
+    );
 
-    const disclosuresResponse = await fetch(disclosuresUrl, {
-      method: "GET",
-      headers: authHeaders,
-    });
-
-    const disclosuresText = await disclosuresResponse.text();
+    const disclosuresText = await disclosuresRes.text();
 
     let disclosuresData;
     try {
@@ -65,9 +55,9 @@ export default async function handler(req, res) {
       disclosuresData = disclosuresText;
     }
 
-    return res.status(disclosuresResponse.status).json({
-      success: disclosuresResponse.ok,
-      status: disclosuresResponse.status,
+    return res.status(disclosuresRes.status).json({
+      success: disclosuresRes.ok,
+      status: disclosuresRes.status,
       lastIndex,
       startIndex,
       count: Array.isArray(disclosuresData) ? disclosuresData.length : null,
