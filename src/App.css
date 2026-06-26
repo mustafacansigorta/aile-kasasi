@@ -230,3 +230,27 @@ footer {
   border-radius: 14px;
   text-decoration: none;
 }
+.badge.positive {
+  background: #16a34a;
+  color: white;
+}
+
+.badge.important {
+  background: #2563eb;
+  color: white;
+}
+
+.badge.neutral {
+  background: #d97706;
+  color: white;
+}
+
+.badge.low {
+  background: #6b7280;
+  color: white;
+}
+
+.badge.watch {
+  background: #7c3aed;
+  color: white;
+}

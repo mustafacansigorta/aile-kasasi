@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
+import {
+  analyzeDisclosure,
+  getShortCompanyName,
+} from "./utils/analysis";
+
 export default function App() {
   const [news, setNews] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -52,23 +57,41 @@ export default function App() {
         news.map((item) => (
           <div className="card" key={item.disclosureIndex}>
 
-            <h2>{item.title}</h2>
+  {(() => {
+    const analysis = analyzeDisclosure(item);
 
-<p>
-{item.subReportIds?.[0] || "KAP Bildirimi"}
-</p>
-
-<p>
-Bildirim No : {item.disclosureIndex}
-</p>
-
-            <button
-              onClick={() => openDetail(item.disclosureIndex)}
-            >
-              Detayı Gör
-            </button>
-
+    return (
+      <>
+        <div className="card-top">
+          <div>
+            <h2>{getShortCompanyName(item.title)}</h2>
+            <p>{analysis.reportTitle}</p>
           </div>
+
+          <span className={`badge ${analysis.badge}`}>
+            {analysis.effect}
+          </span>
+        </div>
+
+        <p>{analysis.summary}</p>
+
+        <div className="score-row">
+          <span>Etki Skoru</span>
+          <strong>{analysis.score}/100</strong>
+        </div>
+
+        <p>Bildirim No : {item.disclosureIndex}</p>
+
+        <button
+          onClick={() => openDetail(item.disclosureIndex)}
+        >
+          Detayı Gör
+        </button>
+      </>
+    );
+  })()}
+
+</div>
         ))}
 
       {selected && (
