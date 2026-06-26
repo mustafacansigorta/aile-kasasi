@@ -1,16 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
-
-import {
-  analyzeDisclosure,
-  getShortCompanyName,
-} from "./utils/analysis";
+import { analyzeDisclosure, getShortCompanyName } from "./utils/analysis";
 
 export default function App() {
   const [news, setNews] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
     loadNews();
@@ -18,17 +16,23 @@ export default function App() {
 
   async function loadNews() {
     try {
-      const res = await fetch("/api/kap-disclosures");
+      const res = await fetch("/api/kap-live");
       const json = await res.json();
 
       if (json.success) {
         setNews(
-  json.data
-    .filter((item) => item.disclosureType !== "FON")
-    .sort((a, b) => {
-      return analyzeDisclosure(b).score - analyzeDisclosure(a).score;
-    })
-);
+          json.data
+            .filter((item) => item.isOldKap === false)
+            .filter((item) => item.disclosureType !== "FON")
+            .map((item) => ({
+              ...item,
+              title: item.kapTitle,
+              subReportIds: [item.subject],
+            }))
+            .sort((a, b) => {
+              return analyzeDisclosure(b).score - analyzeDisclosure(a).score;
+            })
+        );
       }
     } catch (e) {
       console.log(e);
@@ -37,117 +41,197 @@ export default function App() {
     setLoading(false);
   }
 
-  async function openDetail(id) {
+  async function openDetail(item) {
     setDetailLoading(true);
+    setSelected(item);
 
-    const res = await fetch("/api/kap-detail?id=" + id);
-    const json = await res.json();
+    try {
+      const res = await fetch("/api/kap-detail?id=" + item.disclosureIndex);
+      const json = await res.json();
 
-    setSelected(json.data);
+      if (json.success) {
+        setSelected({
+          ...item,
+          detail: json.data,
+        });
+      }
+    } catch (e) {
+      console.log(e);
+    }
 
     setDetailLoading(false);
   }
 
+  const filteredNews = useMemo(() => {
+    return news.filter((item) => {
+      const analysis = analyzeDisclosure(item);
+      const text = `
+        ${item.kapTitle || ""}
+        ${item.stockCodes || ""}
+        ${item.relatedStocks || ""}
+        ${item.subject || ""}
+        ${item.summary || ""}
+      `.toLowerCase();
+
+      const matchesSearch = text.includes(search.toLowerCase());
+
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "positive" && analysis.badge === "positive") ||
+        (filter === "important" && analysis.score >= 70) ||
+        (filter === "low" && analysis.score < 40);
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [news, search, filter]);
+
+  const importantCount = news.filter(
+    (item) => analyzeDisclosure(item).score >= 70
+  ).length;
+
+  const positiveCount = news.filter(
+    (item) => analyzeDisclosure(item).badge === "positive"
+  ).length;
+
+  const marketScore = news.length
+    ? Math.round(
+        news.reduce((sum, item) => sum + analyzeDisclosure(item).score, 0) /
+          news.length
+      )
+    : 0;
+
   return (
     <div className="app">
+      <header className="hero">
+        <div>
+          <h1>BorsaIQ</h1>
+          <p>Canlı KAP haberlerini sadeleştirir.</p>
+        </div>
 
-      <h1>BorsaIQ</h1>
+        <div className="market-score">
+          <span>{marketScore}</span>
+          <small>Piyasa Skoru</small>
+        </div>
+      </header>
 
-      <p>
-        Yapay Zeka Destekli KAP Analiz Platformu
-      </p>
+      <section className="summary">
+        <h2>Bugün</h2>
 
-      {loading && <h3>Yükleniyor...</h3>}
-
-      {!loading &&
-        news.map((item) => (
-          <div className="card" key={item.disclosureIndex}>
-
-  {(() => {
-    const analysis = analyzeDisclosure(item);
-
-    return (
-      <>
-        <div className="card-top">
+        <div className="summary-grid">
           <div>
-            <h2>{getShortCompanyName(item.title)}</h2>
-            <p>{analysis.reportTitle}</p>
+            <strong>{news.length}</strong>
+            <span>Canlı Bildirim</span>
           </div>
-
-          <span className={`badge ${analysis.badge}`}>
-            {analysis.effect}
-          </span>
+          <div>
+            <strong>{importantCount}</strong>
+            <span>Önemli</span>
+          </div>
+          <div>
+            <strong>{positiveCount}</strong>
+            <span>Pozitif</span>
+          </div>
         </div>
+      </section>
 
-        <p>{analysis.summary}</p>
+      <div className="toolbar">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Hisse, şirket veya konu ara..."
+        />
 
-        <div className="score-row">
-          <span>Etki Skoru</span>
-          <strong>{analysis.score}/100</strong>
+        <div className="filters">
+          <button onClick={() => setFilter("all")}>Tümü</button>
+          <button onClick={() => setFilter("important")}>Önemli</button>
+          <button onClick={() => setFilter("positive")}>Pozitif</button>
+          <button onClick={() => setFilter("low")}>Düşük</button>
         </div>
+      </div>
 
-        <p>Bildirim No : {item.disclosureIndex}</p>
+      <section className="section">
+        <h2>🔥 Hareket Getirebilecek Haberler</h2>
 
-        <button
-          onClick={() => openDetail(item.disclosureIndex)}
-        >
-          Detayı Gör
-        </button>
-      </>
-    );
-  })()}
+        {loading && <h3>Yükleniyor...</h3>}
 
-</div>
-        ))}
+        {!loading &&
+          filteredNews.map((item) => {
+            const analysis = analyzeDisclosure(item);
+            const code =
+              item.stockCodes ||
+              item.relatedStocks ||
+              getShortCompanyName(item.kapTitle);
+
+            return (
+              <div className="card" key={item.disclosureIndex}>
+                <div className="card-top">
+                  <div>
+                    <h2>{code}</h2>
+                    <p>{item.subject || "KAP Bildirimi"}</p>
+                    <small>{item.publishDate}</small>
+                  </div>
+
+                  <span className={`badge ${analysis.badge}`}>
+                    {analysis.effect}
+                  </span>
+                </div>
+
+                <p className="news-summary">
+                  {item.summary || analysis.summary}
+                </p>
+
+                <div className="score-row">
+                  <span>Etki Skoru</span>
+                  <strong>{analysis.score}/100</strong>
+                </div>
+
+                <button onClick={() => openDetail(item)}>Detayı Gör</button>
+              </div>
+            );
+          })}
+      </section>
 
       {selected && (
         <div className="modal">
-
           <div className="modal-content">
-
-            <button
-              onClick={() => setSelected(null)}
-            >
-              X
-            </button>
+            <button onClick={() => setSelected(null)}>X</button>
 
             {detailLoading ? (
               <h2>Yükleniyor...</h2>
             ) : (
-              <>
-                <h2>{selected.senderTitle}</h2>
+              <div className="detail-box">
+                <h2>{selected.stockCodes || selected.relatedStocks}</h2>
+                <h3>{selected.subject}</h3>
 
-                <h3>{selected.subject?.tr}</h3>
+                <h4>📌 Özet</h4>
+                <p>{selected.summary || "Özet bulunamadı."}</p>
 
+                <h4>📄 Bildirim Bilgileri</h4>
                 <p>
-                  {selected.summary?.tr}
+                  <strong>Şirket:</strong> {selected.kapTitle}
+                </p>
+                <p>
+                  <strong>Tarih:</strong> {selected.publishDate}
+                </p>
+                <p>
+                  <strong>Bildirim No:</strong> {selected.disclosureIndex}
                 </p>
 
-                <hr />
-
-                <div className="detail-box">
-  <h4>📌 Özet</h4>
-  <p>{selected.summary?.tr || "Özet bulunamadı."}</p>
-
-  <h4>📄 Bildirim Bilgileri</h4>
-  <p><strong>Şirket:</strong> {selected.senderTitle}</p>
-  <p><strong>Konu:</strong> {selected.subject?.tr}</p>
-  <p><strong>Tarih:</strong> {selected.time}</p>
-
-  {selected.link && (
-    <a href={selected.link} target="_blank" rel="noreferrer">
-      KAP’ta Aç
-    </a>
-  )}
-</div>
-              </>
+                <a
+                  href={`https://www.kap.org.tr/tr/Bildirim/${selected.disclosureIndex}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  KAP’ta Aç
+                </a>
+              </div>
             )}
-
           </div>
-
         </div>
       )}
 
+      <footer>
+        Bu uygulama yatırım tavsiyesi vermez. KAP bildirimlerini sadeleştirir.
+      </footer>
     </div>
   );
 }
