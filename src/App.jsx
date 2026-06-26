@@ -1,33 +1,84 @@
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-const news = [
-  {
-    code: "ASELS",
-    title: "Yeni İş İlişkisi",
-    summary: "Şirket yeni bir sözleşme açıkladı. Ciroya katkı sağlayabilecek önemli bir gelişme.",
-    score: 92,
-    effect: "Pozitif",
-    color: "green",
-  },
-  {
-    code: "THYAO",
-    title: "Filo Yatırımı",
-    summary: "Uzun vadede kapasite artışı sağlayabilecek yatırım açıklaması.",
-    score: 78,
-    effect: "Pozitif",
-    color: "green",
-  },
-  {
-    code: "EREGL",
-    title: "Genel Kurul Bildirimi",
-    summary: "Operasyonel etkisi sınırlı, düşük öncelikli bir bildirim.",
-    score: 24,
-    effect: "Nötr",
-    color: "yellow",
-  },
-];
+function analyzeDisclosure(item) {
+  const title = item.title || "Bilinmeyen Şirket";
+  const report = item.subReportIds?.[0] || "";
+  const text = `${title} ${report}`.toLowerCase();
+
+  let score = 35;
+  let effect = "Nötr";
+  let color = "yellow";
+  let summary = "KAP bildirimi yayınlandı. Detay incelemesi gerektirir.";
+
+  if (text.includes("new-business-relation")) {
+    score = 88;
+    effect = "Pozitif";
+    color = "green";
+    summary = "Yeni iş ilişkisi bildirimi. Şirket gelirlerine katkı sağlayabilecek önemli bir gelişme.";
+  } else if (text.includes("material-event")) {
+    score = 72;
+    effect = "Önemli";
+    color = "green";
+    summary = "Özel durum açıklaması. Şirket üzerinde fiyat hareketi oluşturabilecek nitelikte olabilir.";
+  } else if (text.includes("valuation-report")) {
+    score = 55;
+    effect = "Nötr";
+    color = "yellow";
+    summary = "Değerleme raporu bildirimi. Varlık değeri ve finansal görünüm açısından incelenebilir.";
+  } else if (item.disclosureType === "FON") {
+    score = 22;
+    effect = "Düşük";
+    color = "gray";
+    summary = "Fon bildirimi. Hisse bazlı etkisi genellikle sınırlı olabilir.";
+  }
+
+  return { score, effect, color, summary };
+}
 
 export default function App() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadKapNews() {
+      try {
+        const res = await fetch("/api/kap-disclosures");
+        const json = await res.json();
+
+        if (!json.success) {
+          throw new Error(json.error || "KAP verisi alınamadı.");
+        }
+
+        setItems(json.data || []);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadKapNews();
+  }, []);
+
+  const analyzedNews = useMemo(() => {
+    return items
+      .map((item) => ({
+        ...item,
+        ...analyzeDisclosure(item),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+  }, [items]);
+
+  const importantCount = analyzedNews.filter((x) => x.score >= 60).length;
+  const positiveCount = analyzedNews.filter((x) => x.effect === "Pozitif").length;
+  const neutralCount = analyzedNews.filter((x) => x.effect === "Nötr").length;
+  const marketScore = analyzedNews.length
+    ? Math.round(analyzedNews.reduce((sum, x) => sum + x.score, 0) / analyzedNews.length)
+    : 0;
+
   return (
     <div className="app">
       <header className="hero">
@@ -37,7 +88,7 @@ export default function App() {
         </div>
 
         <div className="market-score">
-          <span>81</span>
+          <span>{marketScore}</span>
           <small>Piyasa Skoru</small>
         </div>
       </header>
@@ -47,15 +98,15 @@ export default function App() {
 
         <div className="summary-grid">
           <div>
-            <strong>3</strong>
+            <strong>{importantCount}</strong>
             <span>Önemli Haber</span>
           </div>
           <div>
-            <strong>2</strong>
+            <strong>{positiveCount}</strong>
             <span>Pozitif</span>
           </div>
           <div>
-            <strong>1</strong>
+            <strong>{neutralCount}</strong>
             <span>Nötr</span>
           </div>
         </div>
@@ -64,27 +115,30 @@ export default function App() {
       <section className="section">
         <h2>🔥 Hareket Getirebilecek Haberler</h2>
 
-        {news.map((item) => (
-          <div className="card" key={item.code}>
-            <div className="card-top">
-              <div>
-                <h3>{item.code}</h3>
-                <p>{item.title}</p>
+        {loading && <p className="info">KAP bildirimleri yükleniyor...</p>}
+        {error && <p className="error">{error}</p>}
+
+        {!loading &&
+          !error &&
+          analyzedNews.map((item) => (
+            <div className="card" key={item.disclosureIndex}>
+              <div className="card-top">
+                <div>
+                  <h3>{item.fundCode || item.title}</h3>
+                  <p>{item.subReportIds?.[0] || item.disclosureType}</p>
+                </div>
+
+                <div className={`badge ${item.color}`}>{item.effect}</div>
               </div>
 
-              <div className={`badge ${item.color}`}>
-                {item.effect}
+              <p className="news-summary">{item.summary}</p>
+
+              <div className="score-row">
+                <span>Etki Skoru</span>
+                <strong>{item.score}/100</strong>
               </div>
             </div>
-
-            <p className="news-summary">{item.summary}</p>
-
-            <div className="score-row">
-              <span>Etki Skoru</span>
-              <strong>{item.score}/100</strong>
-            </div>
-          </div>
-        ))}
+          ))}
       </section>
 
       <footer>
