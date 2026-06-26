@@ -1,70 +1,79 @@
 export default async function handler(req, res) {
-  try {
-    const apiKey = process.env.KAP_API_KEY;
+  const apiKey = process.env.KAP_API_KEY;
+  const baseUrl = "https://apigwdev.mkk.com.tr/api/vyk";
 
-    if (!apiKey) {
-      return res.status(500).json({
-        success: false,
-        error: "KAP_API_KEY eksik.",
-      });
-    }
+  if (!apiKey) {
+    return res.status(500).json({
+      success: false,
+      error: "KAP_API_KEY eksik.",
+    });
+  }
 
-    const tokenUrl = `https://apigwdev.mkk.com.tr/auth/generateToken?apiKey=${encodeURIComponent(
-      apiKey
-    )}`;
+  const tests = [
+    {
+      name: "apiKey-header",
+      url: `${baseUrl}/members`,
+      headers: { apiKey },
+    },
+    {
+      name: "x-api-key-header",
+      url: `${baseUrl}/members`,
+      headers: { "x-api-key": apiKey },
+    },
+    {
+      name: "X-API-KEY-header",
+      url: `${baseUrl}/members`,
+      headers: { "X-API-KEY": apiKey },
+    },
+    {
+      name: "Authorization-Bearer",
+      url: `${baseUrl}/members`,
+      headers: { Authorization: `Bearer ${apiKey}` },
+    },
+    {
+      name: "Authorization-raw",
+      url: `${baseUrl}/members`,
+      headers: { Authorization: apiKey },
+    },
+    {
+      name: "query-apiKey",
+      url: `${baseUrl}/members?apiKey=${encodeURIComponent(apiKey)}`,
+      headers: {},
+    },
+  ];
 
-    const tokenResponse = await fetch(tokenUrl, {
+  const results = [];
+
+  for (const test of tests) {
+    const response = await fetch(test.url, {
       method: "GET",
       headers: {
         Accept: "application/json",
+        ...test.headers,
       },
     });
 
-    const tokenText = await tokenResponse.text();
+    const text = await response.text();
 
-    if (!tokenResponse.ok) {
-      return res.status(tokenResponse.status).json({
-        success: false,
-        step: "generateToken",
-        status: tokenResponse.status,
-        tokenUrl,
-        raw: tokenText,
+    results.push({
+      name: test.name,
+      status: response.status,
+      success: response.ok,
+      sample: response.ok ? text.slice(0, 500) : text.slice(0, 200),
+    });
+
+    if (response.ok) {
+      return res.status(200).json({
+        success: true,
+        workingMethod: test.name,
+        data: JSON.parse(text),
       });
     }
-
-    const tokenData = JSON.parse(tokenText);
-    const token = tokenData.token;
-
-    const membersResponse = await fetch(
-      "https://apigwdev.mkk.com.tr/api/vyk/members",
-      {
-        method: "GET",
-        headers: {
-          Authorization: token,
-          Accept: "application/json",
-        },
-      }
-    );
-
-    const membersText = await membersResponse.text();
-
-    let membersData;
-    try {
-      membersData = JSON.parse(membersText);
-    } catch {
-      membersData = membersText;
-    }
-
-    return res.status(membersResponse.status).json({
-      success: membersResponse.ok,
-      status: membersResponse.status,
-      count: Array.isArray(membersData) ? membersData.length : null,
-      data: membersData,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-    });
   }
+
+  return res.status(401).json({
+    success: false,
+    message: "Hiçbir auth yöntemi çalışmadı.",
+    results,
+  });
 }
