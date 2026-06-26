@@ -9,16 +9,16 @@ export default async function handler(req, res) {
       });
     }
 
-    // 1. Önce token alıyoruz
-    const tokenResponse = await fetch(
-      `https://apigwdev.mkk.com.tr/auth/generateToken?apiKey=${apiKey}`,
-      {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
-      }
-    );
+    const tokenUrl = `https://apigwdev.mkk.com.tr/auth/generateToken?apiKey=${encodeURIComponent(
+      apiKey
+    )}`;
+
+    const tokenResponse = await fetch(tokenUrl, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    });
 
     const tokenText = await tokenResponse.text();
 
@@ -27,33 +27,14 @@ export default async function handler(req, res) {
         success: false,
         step: "generateToken",
         status: tokenResponse.status,
+        tokenUrl,
         raw: tokenText,
       });
     }
 
-    let tokenData;
-
-    try {
-      tokenData = JSON.parse(tokenText);
-    } catch {
-      return res.status(500).json({
-        success: false,
-        step: "parseToken",
-        raw: tokenText,
-      });
-    }
-
+    const tokenData = JSON.parse(tokenText);
     const token = tokenData.token;
 
-    if (!token) {
-      return res.status(500).json({
-        success: false,
-        step: "missingToken",
-        tokenData,
-      });
-    }
-
-    // 2. Token ile şirket listesini çekiyoruz
     const membersResponse = await fetch(
       "https://apigwdev.mkk.com.tr/api/vyk/members",
       {
@@ -68,7 +49,6 @@ export default async function handler(req, res) {
     const membersText = await membersResponse.text();
 
     let membersData;
-
     try {
       membersData = JSON.parse(membersText);
     } catch {
