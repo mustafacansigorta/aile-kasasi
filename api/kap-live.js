@@ -11,17 +11,39 @@ export default async function handler(req, res) {
 
     const html = await response.text();
 
-    const matches = [...html.matchAll(/\/tr\/Bildirim\/(\d+)/g)];
+    const keywords = [
+      "Bildirim",
+      "disclosure",
+      "disclosures",
+      "company",
+      "stock",
+      "kap",
+      "pageProps",
+      "__NEXT_DATA__",
+      "announcement",
+      "material",
+      "search",
+      "api",
+    ];
 
-    const ids = [...new Set(matches.map((m) => m[1]))];
+    const found = keywords.map((word) => ({
+      word,
+      count: (html.match(new RegExp(word, "gi")) || []).length,
+      firstIndex: html.toLowerCase().indexOf(word.toLowerCase()),
+      sample:
+        html.toLowerCase().indexOf(word.toLowerCase()) >= 0
+          ? html.slice(
+              Math.max(0, html.toLowerCase().indexOf(word.toLowerCase()) - 200),
+              html.toLowerCase().indexOf(word.toLowerCase()) + 500
+            )
+          : null,
+    }));
 
     return res.status(200).json({
       success: true,
       status: response.status,
       htmlLength: html.length,
-      foundCount: ids.length,
-      ids: ids.slice(0, 30),
-      sample: html.slice(0, 1000),
+      found,
     });
   } catch (error) {
     return res.status(500).json({
