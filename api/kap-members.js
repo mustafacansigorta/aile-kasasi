@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const response = await fetch(`${baseUrl}/members`, {
       method: "GET",
       headers: {
-        Authorization: `Basic ${apiKey}`,
+        Authorization: apiKey,
         Accept: "application/json",
       },
     });
