@@ -1,51 +1,51 @@
 export default async function handler(req, res) {
   const apiKey = process.env.KAP_API_KEY;
-  const baseUrl = "https://apigwdev.mkk.com.tr/api/vyk";
+  const clientId = process.env.KAP_CLIENT_ID;
 
-  if (!apiKey) {
+  if (!apiKey || !clientId) {
     return res.status(500).json({
       success: false,
-      error: "KAP_API_KEY eksik.",
+      error: "KAP_API_KEY veya KAP_CLIENT_ID eksik.",
     });
   }
 
-  const tests = [
+  const tokenTests = [
     {
-      name: "apiKey-header",
-      url: `${baseUrl}/members`,
-      headers: { apiKey },
+      name: "clientId-query",
+      url: `https://apigwdev.mkk.com.tr/auth/generateToken?apiKey=${encodeURIComponent(apiKey)}&clientId=${encodeURIComponent(clientId)}`,
+      headers: {},
     },
     {
-      name: "x-api-key-header",
-      url: `${baseUrl}/members`,
-      headers: { "x-api-key": apiKey },
+      name: "client_id-query",
+      url: `https://apigwdev.mkk.com.tr/auth/generateToken?apiKey=${encodeURIComponent(apiKey)}&client_id=${encodeURIComponent(clientId)}`,
+      headers: {},
     },
     {
-      name: "X-API-KEY-header",
-      url: `${baseUrl}/members`,
-      headers: { "X-API-KEY": apiKey },
+      name: "x-client-id-header",
+      url: `https://apigwdev.mkk.com.tr/auth/generateToken?apiKey=${encodeURIComponent(apiKey)}`,
+      headers: { "x-client-id": clientId },
     },
     {
-      name: "Authorization-Bearer",
-      url: `${baseUrl}/members`,
-      headers: { Authorization: `Bearer ${apiKey}` },
+      name: "X-IBM-Client-Id-header",
+      url: `https://apigwdev.mkk.com.tr/auth/generateToken?apiKey=${encodeURIComponent(apiKey)}`,
+      headers: { "X-IBM-Client-Id": clientId },
     },
     {
-      name: "Authorization-raw",
-      url: `${baseUrl}/members`,
-      headers: { Authorization: apiKey },
+      name: "client_id-header",
+      url: `https://apigwdev.mkk.com.tr/auth/generateToken?apiKey=${encodeURIComponent(apiKey)}`,
+      headers: { "client_id": clientId },
     },
     {
-      name: "query-apiKey",
-      url: `${baseUrl}/members?apiKey=${encodeURIComponent(apiKey)}`,
+      name: "api-vyk-token-clientId-query",
+      url: `https://apigwdev.mkk.com.tr/api/vyk/auth/generateToken?apiKey=${encodeURIComponent(apiKey)}&clientId=${encodeURIComponent(clientId)}`,
       headers: {},
     },
   ];
 
   const results = [];
 
-  for (const test of tests) {
-    const response = await fetch(test.url, {
+  for (const test of tokenTests) {
+    const tokenResponse = await fetch(test.url, {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -53,27 +53,80 @@ export default async function handler(req, res) {
       },
     });
 
-    const text = await response.text();
+    const tokenText = await tokenResponse.text();
 
     results.push({
+      step: "token",
       name: test.name,
-      status: response.status,
-      success: response.ok,
-      sample: response.ok ? text.slice(0, 500) : text.slice(0, 200),
+      status: tokenResponse.status,
+      sample: tokenText.slice(0, 300),
     });
 
-    if (response.ok) {
-      return res.status(200).json({
-        success: true,
-        workingMethod: test.name,
-        data: JSON.parse(text),
+    if (!tokenResponse.ok) continue;
+
+    let tokenData;
+    try {
+      tokenData = JSON.parse(tokenText);
+    } catch {
+      continue;
+    }
+
+    const token = tokenData.token;
+
+    if (!token) continue;
+
+    const memberTests = [
+      {
+        name: "Authorization-raw-token",
+        headers: { Authorization: token },
+      },
+      {
+        name: "Authorization-Bearer-token",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+      {
+        name: "token-header",
+        headers: { token },
+      },
+      {
+        name: "x-access-token-header",
+        headers: { "x-access-token": token },
+      },
+    ];
+
+    for (const memberTest of memberTests) {
+      const membersResponse = await fetch("https://apigwdev.mkk.com.tr/api/vyk/members", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...memberTest.headers,
+        },
       });
+
+      const membersText = await membersResponse.text();
+
+      results.push({
+        step: "members",
+        tokenMethod: test.name,
+        memberMethod: memberTest.name,
+        status: membersResponse.status,
+        sample: membersText.slice(0, 300),
+      });
+
+      if (membersResponse.ok) {
+        return res.status(200).json({
+          success: true,
+          tokenMethod: test.name,
+          memberMethod: memberTest.name,
+          data: JSON.parse(membersText),
+        });
+      }
     }
   }
 
   return res.status(401).json({
     success: false,
-    message: "Hiçbir auth yöntemi çalışmadı.",
+    message: "Client ID dahil test edildi ama başarılı yöntem bulunamadı.",
     results,
   });
 }
