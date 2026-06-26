@@ -52,11 +52,15 @@ export default function App() {
         news.map((item) => (
           <div className="card" key={item.disclosureIndex}>
 
-            <h2>{item.senderExchCodes?.[0]}</h2>
+            <h2>{item.title}</h2>
 
-            <h3>{item.subject?.tr}</h3>
+<p>
+{item.subReportIds?.[0] || "KAP Bildirimi"}
+</p>
 
-            <p>{item.summary?.tr}</p>
+<p>
+Bildirim No : {item.disclosureIndex}
+</p>
 
             <button
               onClick={() => openDetail(item.disclosureIndex)}
