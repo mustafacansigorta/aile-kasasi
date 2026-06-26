@@ -157,3 +157,20 @@ footer {
   color: #6b7280;
   text-align: center;
 }
+.info {
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 14px;
+  border-radius: 14px;
+}
+
+.error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 14px;
+  border-radius: 14px;
+}
+
+.gray {
+  background: #6b7280;
+}
