@@ -11,39 +11,43 @@ export default async function handler(req, res) {
 
     const html = await response.text();
 
-    const keywords = [
-      "Bildirim",
-      "disclosure",
-      "disclosures",
-      "company",
-      "stock",
-      "kap",
-      "pageProps",
-      "__NEXT_DATA__",
-      "announcement",
-      "material",
-      "search",
-      "api",
+    const patterns = [
+      "disclosureIndex",
+      "disclosureId",
+      "disclosureOid",
+      "disclosureType",
+      "publishDate",
+      "publishDateTime",
+      "summary",
+      "subject",
+      "memberTitle",
+      "stockCodes",
+      "kapMemberTitle",
+      "Bildirim İçeriği",
+      "Özel Durum",
+      "Yeni İş İlişkisi",
     ];
 
-    const found = keywords.map((word) => ({
-      word,
-      count: (html.match(new RegExp(word, "gi")) || []).length,
-      firstIndex: html.toLowerCase().indexOf(word.toLowerCase()),
-      sample:
-        html.toLowerCase().indexOf(word.toLowerCase()) >= 0
-          ? html.slice(
-              Math.max(0, html.toLowerCase().indexOf(word.toLowerCase()) - 200),
-              html.toLowerCase().indexOf(word.toLowerCase()) + 500
-            )
-          : null,
-    }));
+    const results = patterns.map((word) => {
+      const lower = html.toLowerCase();
+      const index = lower.indexOf(word.toLowerCase());
+
+      return {
+        word,
+        count: (html.match(new RegExp(word, "gi")) || []).length,
+        firstIndex: index,
+        sample:
+          index >= 0
+            ? html.slice(Math.max(0, index - 500), index + 1500)
+            : null,
+      };
+    });
 
     return res.status(200).json({
       success: true,
       status: response.status,
       htmlLength: html.length,
-      found,
+      results,
     });
   } catch (error) {
     return res.status(500).json({
