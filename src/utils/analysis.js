@@ -104,7 +104,7 @@ export function analyzeDisclosure(item = {}) {
     reportTitle: subject || "KAP Bildirimi",
   };
 }
-function classifyKap(item = {}) {
+export function classifyKap(item = {}) {
   const subject = item.subject || "";
   const summary = item.summary || "";
   const title = item.kapTitle || item.title || "";
