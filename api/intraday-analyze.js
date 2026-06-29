@@ -1,4 +1,5 @@
 import { analyzeCandles } from "../src/utils/candleEngine.js";
+import { calculateTradeSetup } from "../src/utils/tradeSetupEngine.js";
 
 export default async function handler(req, res) {
   try {
@@ -59,6 +60,7 @@ export default async function handler(req, res) {
       );
 
     const analysis = analyzeCandles(candles);
+    const tradeSetup = calculateTradeSetup(analysis);
 
     return res.status(200).json({
       success: true,
@@ -66,7 +68,8 @@ export default async function handler(req, res) {
       yahooSymbol,
       candleCount: candles.length,
       analysis,
-      lastCandles: candles.slice(-10),
+tradeSetup,
+lastCandles: candles.slice(-10),
     });
   } catch (error) {
     return res.status(500).json({
