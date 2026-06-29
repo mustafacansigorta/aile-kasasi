@@ -72,7 +72,13 @@ async function analyzeSymbol(symbol) {
     symbol,
     price: analysis.lastPrice,
     dayChange: analysis.dayChange,
+    vwap: analysis.vwap,
+    rvol: analysis.rvol,
+    ema9: analysis.ema9,
+    ema21: analysis.ema21,
+    ema50: analysis.ema50,
     score: tradeSetup.score,
+    rawScore: tradeSetup.rawScore ?? tradeSetup.score,
     status: tradeSetup.status,
     action: tradeSetup.action,
     risk: tradeSetup.risk,
@@ -80,6 +86,15 @@ async function analyzeSymbol(symbol) {
     trend: tradeSetup.trend,
     shortTerm: tradeSetup.shortTerm,
     reasons: tradeSetup.reasons.slice(0, 5),
+  };
+}
+
+function groupResults(results) {
+  return {
+    buy: results.filter((item) => item.action === "BUY"),
+    watch: results.filter((item) => item.action === "WATCH"),
+    weakWatch: results.filter((item) => item.action === "WEAK_WATCH"),
+    avoid: results.filter((item) => item.action === "AVOID"),
   };
 }
 
@@ -97,9 +112,18 @@ export default async function handler(req, res) {
 
     results.sort((a, b) => b.score - a.score);
 
+    const grouped = groupResults(results);
+
     return res.status(200).json({
       success: true,
       count: results.length,
+      summary: {
+        buy: grouped.buy.length,
+        watch: grouped.watch.length,
+        weakWatch: grouped.weakWatch.length,
+        avoid: grouped.avoid.length,
+      },
+      grouped,
       results,
     });
   } catch (error) {
