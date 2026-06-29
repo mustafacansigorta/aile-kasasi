@@ -145,16 +145,22 @@ setBacktestLoading(false);
 
       const matchesSearch = text.includes(search.toLowerCase());
 
-      const isPositiveOrImportant =
-        item.analysis.score >= 70 ||
-        item.analysis.badge === "positive" ||
-        item.opportunity.score >= 70;
+      const isOpportunity =
+  item.analysis.score >= 70 ||
+  item.analysis.badge === "positive" ||
+  item.opportunity.score >= 70;
 
-      return matchesSearch && isPositiveOrImportant;
+const matchesFilter =
+  filter === "all" ||
+  (filter === "positive" && item.analysis.badge === "positive") ||
+  (filter === "important" && item.analysis.score >= 70) ||
+  (filter === "low" && item.opportunity.score < 70);
+
+return matchesSearch && isOpportunity && matchesFilter;
     })
     .sort((a, b) => b.opportunity.score - a.opportunity.score)
     .slice(0, 20);
-}, [news, search]);
+}, [news, search, filter]);
 
 const importantCount = topOpportunities.filter(
   (item) => item.analysis.score >= 70
@@ -197,8 +203,8 @@ return (
 
         <div className="summary-grid">
           <div>
-            <strong>{news.length}</strong>
-            <span>Canlı Bildirim</span>
+            <strong>{topOpportunities.length}</strong>
+<span>AI Fırsat</span>
           </div>
           <div>
             <strong>{importantCount}</strong>
