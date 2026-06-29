@@ -74,7 +74,7 @@ function similarityScore(current = {}, past = {}) {
 
 async function getKaps(days = 365, limit = 200) {
   const endDate = new Date();
-  endDate.setDate(endDate.getDate() - 40);
+  endDate.setDate(endDate.getDate() - 70);
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - Number(days));
 
@@ -230,6 +230,13 @@ export default async function handler(req, res) {
       const baseIndex = findBaseIndex(prices, kapDate);
 
       if (baseIndex < 0) continue;
+      const baseDate = prices[baseIndex].date;
+
+const dayDiff =
+  (new Date(baseDate).getTime() - new Date(kapDate).getTime()) /
+  (1000 * 60 * 60 * 24);
+
+if (dayDiff > 5) continue;
 
       results.push({
         symbol,
@@ -240,7 +247,7 @@ export default async function handler(req, res) {
         disclosureIndex: kap.disclosureIndex,
         kapClass: kap.kapClass,
         similarity: kap.similarity,
-        baseDate: prices[baseIndex].date,
+        baseDate,
         basePrice: Number(prices[baseIndex].close.toFixed(2)),
         performance: {
           day1: performance(prices, baseIndex, 1),
