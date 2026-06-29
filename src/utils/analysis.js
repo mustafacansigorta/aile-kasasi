@@ -1,75 +1,3 @@
-export function translateReportType(reportId = "") {
-  const map = {
-    "oda-12000_New-Business-Relation": "🤝 Yeni İş İlişkisi",
-    "oda-10000_Material-Event-Disclosure-General": "📢 Özel Durum Açıklaması",
-    "oda-17200_Valuation-Report": "🏢 Değerleme Raporu",
-    "oda-50050_Shareholders6": "👥 Ortaklık Yapısı",
-    "oda-44000_Sustainability-Report": "🌱 Sürdürülebilirlik Raporu",
-    "oda-18900_Liquidity-Providing-Trades": "📊 Likidite Sağlayıcılık İşlemleri",
-    "oda-12800_CMB-Bulletin": "🏛️ SPK Bülteni",
-    "oda-90000_TestNotification": "🧪 Test Bildirimi",
-    "oda-01280_Risk-Measurement-Principles": "📉 Risk Ölçüm Esasları",
-    "oda-01275_Risk-Measurement-And-Valuation-Principles": "📉 Risk ve Değerleme Esasları",
-  };
-
-  return map[reportId] || "📄 KAP Bildirimi";
-}
-
-export function analyzeDisclosure(item = {}) {
-  const reportId = item.subReportIds?.[0] || "";
-  const text = `${item.title || ""} ${reportId}`.toLowerCase();
-
-  let score = 35;
-  let effect = "Nötr";
-  let badge = "neutral";
-  let summary = "Bu bildirim bilgilendirme amaçlıdır. Hisse etkisi detay inceleme gerektirir.";
-
-  if (text.includes("new-business-relation")) {
-    score = 88;
-    effect = "Pozitif";
-    badge = "positive";
-    summary = "Yeni iş ilişkisi bildirimi. Ciro ve kârlılığa katkı sağlayabilecek olumlu bir gelişme olabilir.";
-  } else if (text.includes("material-event")) {
-    score = 72;
-    effect = "Önemli";
-    badge = "important";
-    summary = "Özel durum açıklaması. Şirket üzerinde fiyat hareketi oluşturabilecek nitelikte olabilir.";
-  } else if (text.includes("valuation-report")) {
-    score = 48;
-    effect = "Nötr";
-    badge = "neutral";
-    summary = "Değerleme raporu bildirimi. Varlık değeri açısından takip edilebilir.";
-  } else if (text.includes("risk-measurement")) {
-    score = 18;
-    effect = "Düşük Etki";
-    badge = "low";
-    summary = "Risk ölçüm esaslarına ilişkin teknik bildirim. Hisse üzerinde doğrudan güçlü etki beklenmez.";
-  } else if (text.includes("shareholders")) {
-    score = 55;
-    effect = "Takip Edilmeli";
-    badge = "watch";
-    summary = "Ortaklık yapısına ilişkin bildirim. Pay sahipliği değişimleri açısından incelenebilir.";
-  } else if (item.disclosureType === "FON") {
-    score = 15;
-    effect = "Düşük Etki";
-    badge = "low";
-    summary = "Fon bildirimi. Hisse bazlı etkisi genellikle sınırlı olabilir.";
-  } else if (item.disclosureType === "DUY") {
-    score = 25;
-    effect = "Duyuru";
-    badge = "neutral";
-    summary = "Kurumsal duyuru niteliğinde bildirim.";
-  }
-
-  return {
-    score,
-    effect,
-    badge,
-    summary,
-    reportTitle: translateReportType(reportId),
-  };
-}
-
 export function getShortCompanyName(title = "") {
   return title
     .replace(" ANONİM ŞİRKETİ", "")
@@ -77,5 +5,96 @@ export function getShortCompanyName(title = "") {
     .replace(" A.Ş", "")
     .replace(" SANAYİ VE TİCARET", "")
     .replace(" TİCARET VE SANAYİ", "")
+    .replace(" SANAYİ TİCARET", "")
+    .replace(" VE TİCARET", "")
     .trim();
+}
+
+export function analyzeDisclosure(item = {}) {
+  const subject = item.subject || "";
+  const summary = item.summary || "";
+  const title = item.kapTitle || item.title || "";
+  const text = `${subject} ${summary} ${title}`.toLowerCase();
+
+  let score = 35;
+  let effect = "Nötr";
+  let badge = "neutral";
+  let aiSummary =
+    "Bu bildirim bilgilendirme amaçlıdır. Hisse etkisi detay inceleme gerektirir.";
+
+  if (text.includes("yeni iş ilişkisi") || text.includes("sözleşme")) {
+    score = 90;
+    effect = "Pozitif";
+    badge = "positive";
+    aiSummary =
+      "Şirket yeni bir iş ilişkisi veya sözleşme açıklamış. Ciro ve kârlılığa olumlu katkı sağlayabilir.";
+  } else if (text.includes("ihale") || text.includes("sipariş")) {
+    score = 88;
+    effect = "Pozitif";
+    badge = "positive";
+    aiSummary =
+      "İhale, sipariş veya iş alımına ilişkin bildirim. Şirket gelirleri açısından olumlu değerlendirilebilir.";
+  } else if (text.includes("kar payı") || text.includes("temettü")) {
+    score = 82;
+    effect = "Pozitif";
+    badge = "positive";
+    aiSummary =
+      "Kar payı/temettü bildirimi. Yatırımcı ilgisini artırabilecek olumlu bir gelişme olabilir.";
+  } else if (text.includes("sermaye artırımı") || text.includes("bedelsiz")) {
+    score = 78;
+    effect = "Önemli";
+    badge = "important";
+    aiSummary =
+      "Sermaye artırımı bildirimi. Bedelli/bedelsiz detayına göre hisse üzerinde güçlü etki oluşturabilir.";
+  } else if (text.includes("pay geri alım")) {
+    score = 86;
+    effect = "Pozitif";
+    badge = "positive";
+    aiSummary =
+      "Pay geri alım bildirimi. Şirket yönetiminin hisseye güvenini gösterebilir ve pozitif algılanabilir.";
+  } else if (text.includes("kredi derecelendirme")) {
+    score = 70;
+    effect = "Takip Edilmeli";
+    badge = "watch";
+    aiSummary =
+      "Kredi derecelendirme bildirimi. Notun yönü ve görünüm değişikliği dikkatle incelenmelidir.";
+  } else if (text.includes("genel kurul")) {
+    score = 42;
+    effect = "Nötr";
+    badge = "neutral";
+    aiSummary =
+      "Genel kurul bildirimi. İçeriğinde temettü, sermaye veya yönetim değişikliği varsa önem kazanabilir.";
+  } else if (text.includes("devre kesici")) {
+    score = 30;
+    effect = "Düşük Etki";
+    badge = "low";
+    aiSummary =
+      "Pay bazında devre kesici bildirimi. Fiyat oynaklığına işaret eder ancak tek başına temel haber değildir.";
+  } else if (text.includes("şirket genel bilgi formu")) {
+    score = 18;
+    effect = "Düşük Etki";
+    badge = "low";
+    aiSummary =
+      "Şirket genel bilgi formu bildirimi. Genellikle teknik/güncelleme niteliğindedir.";
+  } else if (text.includes("esas sözleşme")) {
+    score = 45;
+    effect = "Takip Edilmeli";
+    badge = "watch";
+    aiSummary =
+      "Esas sözleşme değişikliği bildirimi. Değişikliğin içeriğine göre önem kazanabilir.";
+  } else if (text.includes("halka arz")) {
+    score = 75;
+    effect = "Önemli";
+    badge = "important";
+    aiSummary =
+      "Halka arz süreciyle ilgili bildirim. İlgili şirket ve sektör açısından takip edilmelidir.";
+  }
+
+  return {
+    score,
+    effect,
+    badge,
+    summary: aiSummary,
+    reportTitle: subject || "KAP Bildirimi",
+  };
 }
