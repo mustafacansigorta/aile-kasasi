@@ -1,4 +1,78 @@
-async function getKapsBySubject(subject, days = 365, limit = 20) {
+function classifyKap(item = {}) {
+  const subject = item.subject || "";
+  const summary = item.summary || "";
+  const text = `${subject} ${summary}`.toLowerCase();
+
+  if (text.includes("yeni iş ilişkisi") || text.includes("sözleşme")) {
+    return "Yeni İş İlişkisi";
+  }
+
+  if (text.includes("ihale")) {
+    return "İhale";
+  }
+
+  if (text.includes("kar payı") || text.includes("temettü")) {
+    if (text.includes("dağıtılmaması")) return "Kar Payı Dağıtılmaması";
+    return "Kar Payı";
+  }
+
+  if (text.includes("pay geri alım")) {
+    return "Pay Geri Alım";
+  }
+
+  if (text.includes("bedelsiz")) {
+    return "Bedelsiz Sermaye Artırımı";
+  }
+
+  if (text.includes("bedelli")) {
+    return "Bedelli Sermaye Artırımı";
+  }
+
+  if (text.includes("sermaye artırımı")) {
+    return "Sermaye Artırımı";
+  }
+
+  if (text.includes("kredi derecelendirme")) {
+    return "Kredi Derecelendirme";
+  }
+
+  if (text.includes("devre kesici")) {
+    return "Devre Kesici";
+  }
+
+  if (text.includes("genel kurul")) {
+    return "Genel Kurul";
+  }
+
+  if (text.includes("pay alım satım")) {
+    return "Pay Alım Satım";
+  }
+
+  if (text.includes("halka arz")) {
+    return "Halka Arz";
+  }
+
+  return "Diğer";
+}
+
+function similarityScore(current = {}, past = {}) {
+  let score = 0;
+
+  const currentClass = classifyKap(current);
+  const pastClass = classifyKap(past);
+
+  if (currentClass === pastClass) score += 60;
+  if (current.subject && current.subject === past.subject) score += 25;
+
+  const currentStock = current.stockCodes || current.relatedStocks || "";
+  const pastStock = past.stockCodes || past.relatedStocks || "";
+
+  if (currentStock && pastStock && currentStock === pastStock) score += 15;
+
+  return Math.min(score, 100);
+}
+
+async function getKaps(days = 365, limit = 200) {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - Number(days));
@@ -27,14 +101,7 @@ async function getKapsBySubject(subject, days = 365, limit = 20) {
   const data = await response.json();
 
   return Array.isArray(data)
-    ? data
-        .filter((item) =>
-          String(item.subject || "")
-            .toLowerCase()
-            .includes(subject.toLowerCase())
-        )
-        .filter((item) => item.stockCodes)
-        .slice(0, Number(limit))
+    ? data.filter((item) => item.stockCodes).slice(0, Number(limit))
     : [];
 }
 
@@ -117,7 +184,15 @@ function positiveRate(values) {
 
 export default async function handler(req, res) {
   try {
-    const { subject, days = "365", limit = "20" } = req.query;
+    const {
+      subject,
+      summary = "",
+      stockCodes = "",
+      days = "365",
+      limit = "200",
+      minSimilarity = "70",
+      maxAnalyze = "30",
+    } = req.query;
 
     if (!subject) {
       return res.status(400).json({
@@ -126,11 +201,28 @@ export default async function handler(req, res) {
       });
     }
 
-    const kaps = await getKapsBySubject(subject, days, limit);
+    const currentKap = {
+      subject,
+      summary,
+      stockCodes,
+    };
+
+    const currentClass = classifyKap(currentKap);
+
+    const kaps = await getKaps(days, limit);
+
+    const similarKaps = kaps
+      .map((kap) => ({
+        ...kap,
+        kapClass: classifyKap(kap),
+        similarity: similarityScore(currentKap, kap),
+      }))
+      .filter((kap) => kap.similarity >= Number(minSimilarity))
+      .slice(0, Number(maxAnalyze));
 
     const results = [];
 
-    for (const kap of kaps) {
+    for (const kap of similarKaps) {
       const symbol = kap.stockCodes.split(",")[0].trim();
       const kapDate = toISODate(kap.publishDate);
       const prices = await getStockHistory(symbol);
@@ -145,6 +237,8 @@ export default async function handler(req, res) {
         summary: kap.summary,
         publishDate: kap.publishDate,
         disclosureIndex: kap.disclosureIndex,
+        kapClass: kap.kapClass,
+        similarity: kap.similarity,
         baseDate: prices[baseIndex].date,
         basePrice: Number(prices[baseIndex].close.toFixed(2)),
         performance: {
@@ -163,8 +257,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      subject,
+      currentClass,
+      minSimilarity: Number(minSimilarity),
       searchedKapCount: kaps.length,
+      similarKapCount: similarKaps.length,
       analyzedCount: results.length,
       summary: {
         day1: {

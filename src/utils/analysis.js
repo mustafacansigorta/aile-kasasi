@@ -98,3 +98,76 @@ export function analyzeDisclosure(item = {}) {
     reportTitle: subject || "KAP Bildirimi",
   };
 }
+export function classifyKap(item = {}) {
+  const subject = item.subject || "";
+  const summary = item.summary || "";
+  const text = `${subject} ${summary}`.toLowerCase();
+
+  if (text.includes("yeni iş ilişkisi") || text.includes("sözleşme")) {
+    return "Yeni İş İlişkisi";
+  }
+
+  if (text.includes("ihale")) {
+    return "İhale";
+  }
+
+  if (text.includes("kar payı") || text.includes("temettü")) {
+    if (text.includes("dağıtılmaması")) return "Kar Payı Dağıtılmaması";
+    return "Kar Payı";
+  }
+
+  if (text.includes("pay geri alım")) {
+    return "Pay Geri Alım";
+  }
+
+  if (text.includes("bedelsiz")) {
+    return "Bedelsiz Sermaye Artırımı";
+  }
+
+  if (text.includes("bedelli")) {
+    return "Bedelli Sermaye Artırımı";
+  }
+
+  if (text.includes("sermaye artırımı")) {
+    return "Sermaye Artırımı";
+  }
+
+  if (text.includes("kredi derecelendirme")) {
+    return "Kredi Derecelendirme";
+  }
+
+  if (text.includes("devre kesici")) {
+    return "Devre Kesici";
+  }
+
+  if (text.includes("genel kurul")) {
+    return "Genel Kurul";
+  }
+
+  if (text.includes("pay alım satım")) {
+    return "Pay Alım Satım";
+  }
+
+  if (text.includes("halka arz")) {
+    return "Halka Arz";
+  }
+
+  return "Diğer";
+}
+
+export function similarityScore(current = {}, past = {}) {
+  let score = 0;
+
+  const currentClass = classifyKap(current);
+  const pastClass = classifyKap(past);
+
+  if (currentClass === pastClass) score += 60;
+  if (current.subject && current.subject === past.subject) score += 25;
+
+  const currentStock = current.stockCodes || current.relatedStocks || "";
+  const pastStock = past.stockCodes || past.relatedStocks || "";
+
+  if (currentStock && pastStock && currentStock === pastStock) score += 15;
+
+  return Math.min(score, 100);
+}
