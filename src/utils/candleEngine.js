@@ -1,256 +1,364 @@
-export function calculateVWAP(candles = []) {
-  let cumulativePV = 0;
-  let cumulativeVolume = 0;
+import yahooFinance from "yahoo-finance2";
 
-  return candles.map((candle) => {
-    const typicalPrice =
-      ((candle.high || 0) + (candle.low || 0) + (candle.close || 0)) / 3;
-
-    const volume = candle.volume || 0;
-
-    cumulativePV += typicalPrice * volume;
-    cumulativeVolume += volume;
-
-    return {
-      ...candle,
-      vwap: cumulativeVolume > 0 ? cumulativePV / cumulativeVolume : null,
-    };
-  });
+function toYahooSymbol(symbol) {
+  return symbol.endsWith(".IS") ? symbol : `${symbol}.IS`;
 }
 
-export function calculateEMA(values = [], period = 9) {
-  if (!values.length) return [];
+function round(value, digit = 2) {
+  if (value === null || value === undefined || Number.isNaN(value)) return null;
+  return Number(value.toFixed(digit));
+}
 
-  const multiplier = 2 / (period + 1);
-  const ema = [];
+function calculateEMA(candles, period) {
+  if (!candles.length) return null;
 
-  values.forEach((value, index) => {
-    if (index === 0) {
-      ema.push(value);
-    } else {
-      ema.push(value * multiplier + ema[index - 1] * (1 - multiplier));
-    }
-  });
+  const k = 2 / (period + 1);
+  let ema = candles[0].close;
+
+  for (let i = 1; i < candles.length; i++) {
+    ema = candles[i].close * k + ema * (1 - k);
+  }
 
   return ema;
 }
 
-export function calculateATR(candles = [], period = 14) {
-  const trueRanges = candles.map((candle, index) => {
-    if (index === 0) {
-      return (candle.high || 0) - (candle.low || 0);
-    }
+function calculateVWAP(candles) {
+  let totalPV = 0;
+  let totalVolume = 0;
 
-    const prevClose = candles[index - 1].close || 0;
+  for (const c of candles) {
+    const typicalPrice = (c.high + c.low + c.close) / 3;
+    totalPV += typicalPrice * c.volume;
+    totalVolume += c.volume;
+  }
 
-    return Math.max(
-      (candle.high || 0) - (candle.low || 0),
-      Math.abs((candle.high || 0) - prevClose),
-      Math.abs((candle.low || 0) - prevClose)
-    );
-  });
-
-  return calculateEMA(trueRanges, period);
+  if (totalVolume === 0) return null;
+  return totalPV / totalVolume;
 }
 
-export function calculateRVOL(candles = [], lookback = 20) {
-  return candles.map((candle, index) => {
-    const start = Math.max(0, index - lookback);
-    const previous = candles.slice(start, index);
+function calculateATR(candles, period = 14) {
+  if (candles.length < period + 1) return null;
 
-    const avgVolume =
-      previous.length > 0
-        ? previous.reduce((sum, c) => sum + (c.volume || 0), 0) /
-          previous.length
-        : 0;
+  const trs = [];
 
-    return {
-      ...candle,
-      rvol: avgVolume > 0 ? (candle.volume || 0) / avgVolume : null,
-    };
-  });
-}
-
-export function findSwingLevels(candles = [], lookback = 3) {
-  const swingHighs = [];
-  const swingLows = [];
-
-  for (let i = lookback; i < candles.length - lookback; i++) {
+  for (let i = 1; i < candles.length; i++) {
     const current = candles[i];
+    const previous = candles[i - 1];
 
-    const left = candles.slice(i - lookback, i);
-    const right = candles.slice(i + 1, i + 1 + lookback);
+    const tr = Math.max(
+      current.high - current.low,
+      Math.abs(current.high - previous.close),
+      Math.abs(current.low - previous.close)
+    );
 
-    const isSwingHigh =
-      left.every((c) => current.high >= c.high) &&
-      right.every((c) => current.high >= c.high);
-
-    const isSwingLow =
-      left.every((c) => current.low <= c.low) &&
-      right.every((c) => current.low <= c.low);
-
-    if (isSwingHigh) {
-      swingHighs.push({
-        price: Number(current.high.toFixed(2)),
-        time: current.time,
-      });
-    }
-
-    if (isSwingLow) {
-      swingLows.push({
-        price: Number(current.low.toFixed(2)),
-        time: current.time,
-      });
-    }
+    trs.push(tr);
   }
 
-  return {
-    swingHighs,
-    swingLows,
-    lastSwingHigh: swingHighs.at(-1) || null,
-    lastSwingLow: swingLows.at(-1) || null,
-  };
+  const lastTRs = trs.slice(-period);
+  const atr = lastTRs.reduce((sum, v) => sum + v, 0) / lastTRs.length;
+
+  return atr;
 }
 
-export function findSupportResistance(candles = []) {
-  if (!candles.length) {
-    return {
-      support: null,
-      resistance: null,
-    };
-  }
+function calculateMomentum(candles, minutes) {
+  if (candles.length <= minutes) return null;
 
-  const lastPrice = candles[candles.length - 1].close;
-  const levels = [];
+  const last = candles[candles.length - 1];
+  const previous = candles[candles.length - 1 - minutes];
 
-  candles.forEach((candle) => {
-    if (typeof candle.high === "number") levels.push(candle.high);
-    if (typeof candle.low === "number") levels.push(candle.low);
-  });
+  if (!previous || previous.close === 0) return null;
 
-  const roundedLevels = levels.map((level) => Number(level.toFixed(2)));
-  const uniqueLevels = [...new Set(roundedLevels)];
-
-  const supportCandidates = uniqueLevels
-    .filter((level) => level < lastPrice)
-    .sort((a, b) => b - a);
-
-  const resistanceCandidates = uniqueLevels
-    .filter((level) => level > lastPrice)
-    .sort((a, b) => a - b);
-
-  return {
-    support: supportCandidates[0] || null,
-    resistance: resistanceCandidates[0] || null,
-  };
+  return ((last.close - previous.close) / previous.close) * 100;
 }
 
-export function calculateOpeningRange(candles = [], minutes = 15) {
-  const openingCandles = candles.slice(0, minutes);
+function calculateRVOL(candles, period = 20) {
+  if (candles.length < period + 1) return null;
 
-  if (!openingCandles.length) {
-    return {
-      high: null,
-      low: null,
-    };
-  }
+  const last = candles[candles.length - 1];
+  const previousCandles = candles.slice(-(period + 1), -1);
 
-  return {
-    high: Number(
-      Math.max(...openingCandles.map((c) => c.high || 0)).toFixed(2)
-    ),
-    low: Number(
-      Math.min(...openingCandles.map((c) => c.low || Infinity)).toFixed(2)
-    ),
-  };
+  const avgVolume =
+    previousCandles.reduce((sum, c) => sum + c.volume, 0) /
+    previousCandles.length;
+
+  if (!avgVolume || avgVolume === 0) return null;
+
+  return last.volume / avgVolume;
 }
 
-export function analyzeCandles(candles = []) {
-  if (!candles.length) {
+function analyzeCandles(candles) {
+  if (!candles || candles.length < 50) {
     return {
       success: false,
-      error: "Mum verisi yok.",
+      message: "Yeterli mum verisi yok."
     };
   }
 
-  const withVWAP = calculateVWAP(candles);
-  const withRVOL = calculateRVOL(withVWAP);
+  const last = candles[candles.length - 1];
 
-  const closes = candles.map((c) => c.close || 0);
+  const dayHigh = Math.max(...candles.map(c => c.high));
+  const dayLow = Math.min(...candles.map(c => c.low));
+  const firstOpen = candles[0].open;
 
-  const ema9 = calculateEMA(closes, 9);
-  const ema21 = calculateEMA(closes, 21);
-  const ema50 = calculateEMA(closes, 50);
-  const atr = calculateATR(candles, 14);
+  const dayChange = ((last.close - firstOpen) / firstOpen) * 100;
 
-  const lastIndex = candles.length - 1;
-  const last = withRVOL[lastIndex];
+  const vwap = calculateVWAP(candles);
+  const rvol = calculateRVOL(candles);
 
-  const dayHigh = Math.max(...candles.map((c) => c.high || 0));
-  const dayLow = Math.min(...candles.map((c) => c.low || Infinity));
+  const ema9 = calculateEMA(candles, 9);
+  const ema21 = calculateEMA(candles, 21);
+  const ema50 = calculateEMA(candles, 50);
 
-  const first = candles[0];
-  const lastClose = last.close || 0;
+  const atr = calculateATR(candles);
 
-  const dayChange =
-    first.open > 0
-      ? Number((((lastClose - first.open) / first.open) * 100).toFixed(2))
-      : null;
+  const momentum5 = calculateMomentum(candles, 5);
+  const momentum15 = calculateMomentum(candles, 15);
 
-  const momentum5 =
-    candles.length >= 5
-      ? Number(
-          (
-            ((lastClose - candles[candles.length - 5].close) /
-              candles[candles.length - 5].close) *
-            100
-          ).toFixed(2)
-        )
-      : null;
-
-  const momentum15 =
-    candles.length >= 15
-      ? Number(
-          (
-            ((lastClose - candles[candles.length - 15].close) /
-              candles[candles.length - 15].close) *
-            100
-          ).toFixed(2)
-        )
-      : null;
-
-  const swings = findSwingLevels(candles);
-  const supportResistance = findSupportResistance(candles);
-  const openingRange = calculateOpeningRange(candles, 15);
+  const isAboveVWAP = vwap ? last.close > vwap : false;
+  const isNearHigh = ((dayHigh - last.close) / dayHigh) * 100;
 
   return {
     success: true,
-    lastPrice: Number(lastClose.toFixed(2)),
-    dayHigh: Number(dayHigh.toFixed(2)),
-    dayLow: Number(dayLow.toFixed(2)),
+    lastPrice: round(last.close),
+    dayHigh: round(dayHigh),
+    dayLow: round(dayLow),
+    dayChange: round(dayChange),
+    vwap: round(vwap),
+    rvol: round(rvol),
+    ema9: round(ema9),
+    ema21: round(ema21),
+    ema50: round(ema50),
+    atr: round(atr),
+    momentum5: round(momentum5),
+    momentum15: round(momentum15),
+    isAboveVWAP,
+    isNearHigh: round(isNearHigh)
+  };
+}
+
+function analyzeTradeSetup(analysis) {
+  let score = 0;
+  const reasons = [];
+
+  const {
+    lastPrice,
     dayChange,
-
-    vwap: last.vwap ? Number(last.vwap.toFixed(2)) : null,
-    rvol: last.rvol ? Number(last.rvol.toFixed(2)) : null,
-
-    ema9: ema9[lastIndex] ? Number(ema9[lastIndex].toFixed(2)) : null,
-    ema21: ema21[lastIndex] ? Number(ema21[lastIndex].toFixed(2)) : null,
-    ema50: ema50[lastIndex] ? Number(ema50[lastIndex].toFixed(2)) : null,
-    atr: atr[lastIndex] ? Number(atr[lastIndex].toFixed(2)) : null,
-
+    vwap,
+    rvol,
+    ema9,
+    ema21,
+    ema50,
     momentum5,
     momentum15,
+    isAboveVWAP,
+    isNearHigh
+  } = analysis;
 
-    isAboveVWAP: last.vwap ? lastClose > last.vwap : null,
-    isNearHigh:
-      dayHigh > 0
-        ? Number((((dayHigh - lastClose) / dayHigh) * 100).toFixed(2))
-        : null,
+  const trendBullish = ema9 > ema21 && ema21 > ema50;
+  const priceAboveEma9 = lastPrice > ema9;
+  const priceAboveEma21 = lastPrice > ema21;
 
-    support: supportResistance.support,
-    resistance: supportResistance.resistance,
-    lastSwingHigh: swings.lastSwingHigh,
-    lastSwingLow: swings.lastSwingLow,
-    openingRange,
+  if (trendBullish) {
+    score += 20;
+    reasons.push("EMA trend dizilimi pozitif");
+  } else {
+    reasons.push("EMA trend dizilimi zayıf");
+  }
+
+  if (priceAboveEma9) {
+    score += 10;
+    reasons.push("Fiyat EMA9 üzerinde");
+  } else {
+    reasons.push("Fiyat EMA9 altında");
+  }
+
+  if (priceAboveEma21) {
+    score += 10;
+    reasons.push("Fiyat EMA21 üzerinde");
+  } else {
+    reasons.push("Fiyat EMA21 altında");
+  }
+
+  if (isAboveVWAP) {
+    score += 15;
+    reasons.push("VWAP üzerinde");
+  } else {
+    reasons.push("VWAP altında");
+  }
+
+  if (momentum5 !== null && momentum5 > 0) {
+    score += 10;
+    reasons.push(`5 dk momentum pozitif (%${momentum5})`);
+  } else {
+    reasons.push(`5 dk momentum negatif (%${momentum5})`);
+  }
+
+  if (momentum15 !== null && momentum15 > 0) {
+    score += 10;
+    reasons.push(`15 dk momentum pozitif (%${momentum15})`);
+  } else {
+    reasons.push(`15 dk momentum negatif (%${momentum15})`);
+  }
+
+  if (dayChange > 1) {
+    score += 10;
+    reasons.push(`Günlük performans güçlü (%${dayChange})`);
+  } else if (dayChange > 0) {
+    score += 5;
+    reasons.push(`Günlük performans pozitif (%${dayChange})`);
+  } else {
+    reasons.push(`Günlük performans zayıf (%${dayChange})`);
+  }
+
+  if (isNearHigh <= 1) {
+    score += 10;
+    reasons.push("Gün içi zirveye çok yakın");
+  } else if (isNearHigh <= 2.5) {
+    score += 5;
+    reasons.push("Gün içi zirveye yakın");
+  } else {
+    reasons.push("Gün içi zirveden uzak");
+  }
+
+  if (rvol && rvol >= 2) {
+    score += 15;
+    reasons.push(`Hacim çok güçlü RVOL ${rvol}`);
+  } else if (rvol && rvol >= 1.3) {
+    score += 8;
+    reasons.push(`Hacim destekli RVOL ${rvol}`);
+  } else {
+    reasons.push("Hacim zayıf veya hesaplanamadı");
+  }
+
+  let risk = "LOW";
+
+  if (!isAboveVWAP || momentum5 < 0 || momentum15 < 0) {
+    risk = "HIGH";
+  } else if (!priceAboveEma9 || dayChange < 0) {
+    risk = "MEDIUM";
+  }
+
+  let action = "WAIT";
+
+  if (score >= 80 && risk !== "HIGH") {
+    action = "BUY";
+  } else if (score >= 60) {
+    action = "WATCH";
+  } else if (score >= 40) {
+    action = "WEAK_WATCH";
+  } else {
+    action = "AVOID";
+  }
+
+  let status = "Zayıf";
+  let level = "weak";
+
+  if (score >= 80) {
+    status = "Güçlü Alım";
+    level = "strong";
+  } else if (score >= 60) {
+    status = "Takip Edilebilir";
+    level = "watch";
+  } else if (score >= 40) {
+    status = "Zayıf Takip";
+    level = "neutral";
+  }
+
+  let confidence = 50;
+
+  if (isAboveVWAP) confidence += 10;
+  if (trendBullish) confidence += 10;
+  if (momentum5 > 0 && momentum15 > 0) confidence += 15;
+  if (rvol && rvol > 1.5) confidence += 15;
+  if (risk === "HIGH") confidence -= 20;
+
+  confidence = Math.max(0, Math.min(100, confidence));
+  score = Math.max(0, Math.min(100, score));
+
+  return {
+    score,
+    status,
+    level,
+    action,
+    risk,
+    confidence,
+    trend: trendBullish ? "Bullish" : "Weak",
+    shortTerm:
+      isAboveVWAP && momentum5 > 0
+        ? "Bullish"
+        : momentum5 < 0 && momentum15 < 0
+        ? "Bearish"
+        : "Neutral",
+    reasons
   };
+}
+
+export async function getCandleAnalysis(symbol) {
+  try {
+    const yahooSymbol = toYahooSymbol(symbol);
+
+    const queryOptions = {
+      period1: new Date(Date.now() - 1000 * 60 * 60 * 8),
+      interval: "1m"
+    };
+
+    const result = await yahooFinance.chart(yahooSymbol, queryOptions);
+
+    if (!result || !result.quotes || result.quotes.length === 0) {
+      return {
+        success: false,
+        symbol,
+        yahooSymbol,
+        message: "Mum verisi bulunamadı."
+      };
+    }
+
+    const candles = result.quotes
+      .filter(q =>
+        q.open !== null &&
+        q.high !== null &&
+        q.low !== null &&
+        q.close !== null
+      )
+      .map(q => ({
+        time: q.date,
+        open: q.open,
+        high: q.high,
+        low: q.low,
+        close: q.close,
+        volume: q.volume || 0
+      }));
+
+    const cleanCandles = candles.filter(c => c.volume > 0);
+
+    const analysis = analyzeCandles(cleanCandles);
+
+    if (!analysis.success) {
+      return {
+        success: false,
+        symbol,
+        yahooSymbol,
+        candleCount: cleanCandles.length,
+        message: analysis.message
+      };
+    }
+
+    const tradeSetup = analyzeTradeSetup(analysis);
+
+    return {
+      success: true,
+      symbol,
+      yahooSymbol,
+      candleCount: cleanCandles.length,
+      analysis,
+      tradeSetup,
+      lastCandles: cleanCandles.slice(-10)
+    };
+  } catch (error) {
+    return {
+      success: false,
+      symbol,
+      message: error.message
+    };
+  }
 }

@@ -59,17 +59,20 @@ export default async function handler(req, res) {
           typeof c.volume === "number"
       );
 
-    const analysis = analyzeCandles(candles);
+    // Canlı ama henüz tamamlanmamış volume 0 mumları temizliyoruz
+    const cleanCandles = candles.filter((c) => c.volume > 0);
+
+    const analysis = analyzeCandles(cleanCandles);
     const tradeSetup = calculateTradeSetup(analysis);
 
     return res.status(200).json({
       success: true,
       symbol: symbol.toUpperCase(),
       yahooSymbol,
-      candleCount: candles.length,
+      candleCount: cleanCandles.length,
       analysis,
-tradeSetup,
-lastCandles: candles.slice(-10),
+      tradeSetup,
+      lastCandles: cleanCandles.slice(-10),
     });
   } catch (error) {
     return res.status(500).json({
