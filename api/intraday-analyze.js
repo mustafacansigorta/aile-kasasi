@@ -1,5 +1,6 @@
 import { analyzeCandles } from "../src/utils/candleEngine.js";
 import { calculateTradeSetup } from "../src/utils/tradeSetupEngine.js";
+import { detectTradeSetup } from "../src/utils/setupEngine.js";
 
 export default async function handler(req, res) {
   try {
@@ -64,16 +65,18 @@ export default async function handler(req, res) {
 
     const analysis = analyzeCandles(cleanCandles);
     const tradeSetup = calculateTradeSetup(analysis);
+    const setup = detectTradeSetup(analysis);
 
     return res.status(200).json({
-      success: true,
-      symbol: cleanSymbol,
-      yahooSymbol,
-      candleCount: cleanCandles.length,
-      analysis,
-      tradeSetup,
-      lastCandles: cleanCandles.slice(-10),
-    });
+  success: true,
+  symbol: cleanSymbol,
+  yahooSymbol,
+  candleCount: cleanCandles.length,
+  analysis,
+  tradeSetup,
+  setup,
+  lastCandles: cleanCandles.slice(-10),
+});
   } catch (error) {
     return res.status(500).json({
       success: false,
