@@ -74,6 +74,7 @@ function similarityScore(current = {}, past = {}) {
 
 async function getKaps(days = 365, limit = 200) {
   const endDate = new Date();
+  endDate.setDate(endDate.getDate() - 40);
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - Number(days));
 
