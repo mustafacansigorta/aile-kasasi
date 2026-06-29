@@ -117,10 +117,24 @@ setBacktestLoading(false);
     }
   }
 
-  const filteredNews = useMemo(() => {
-    return news.filter((item) => {
+  const topOpportunities = useMemo(() => {
+  return news
+    .map((item) => {
       const analysis = analyzeDisclosure(item);
 
+      const opportunity = getOpportunityScore(analysis, {
+        rating: analysis.score,
+        confidence: 50,
+        probability: analysis.score,
+      });
+
+      return {
+        ...item,
+        analysis,
+        opportunity,
+      };
+    })
+    .filter((item) => {
       const text = `
         ${item.kapTitle || ""}
         ${item.stockCodes || ""}
@@ -131,37 +145,40 @@ setBacktestLoading(false);
 
       const matchesSearch = text.includes(search.toLowerCase());
 
-      const matchesFilter =
-        filter === "all" ||
-        (filter === "positive" && analysis.badge === "positive") ||
-        (filter === "important" && analysis.score >= 70) ||
-        (filter === "low" && analysis.score < 40);
+      const isPositiveOrImportant =
+        item.analysis.score >= 70 ||
+        item.analysis.badge === "positive" ||
+        item.opportunity.score >= 70;
 
-      return matchesSearch && matchesFilter;
-    });
-  }, [news, search, filter]);
+      return matchesSearch && isPositiveOrImportant;
+    })
+    .sort((a, b) => b.opportunity.score - a.opportunity.score)
+    .slice(0, 20);
+}, [news, search]);
 
-  const importantCount = news.filter(
-    (item) => analyzeDisclosure(item).score >= 70
-  ).length;
+const importantCount = topOpportunities.filter(
+  (item) => item.analysis.score >= 70
+).length;
 
-  const positiveCount = news.filter(
-    (item) => analyzeDisclosure(item).badge === "positive"
-  ).length;
+const positiveCount = topOpportunities.filter(
+  (item) => item.analysis.badge === "positive"
+).length;
 
-  const marketScore = news.length
-    ? Math.round(
-        news.reduce((sum, item) => sum + analyzeDisclosure(item).score, 0) /
-          news.length
-      )
-    : 0;
+const marketScore = topOpportunities.length
+  ? Math.round(
+      topOpportunities.reduce(
+        (sum, item) => sum + item.opportunity.score,
+        0
+      ) / topOpportunities.length
+    )
+  : 0;
 
-  function renderPerformance(value) {
-    if (value === null || value === undefined) return "-";
-    return `${value > 0 ? "+" : ""}${value}%`;
-  }
+function renderPerformance(value) {
+  if (value === null || value === undefined) return "-";
+  return `${value > 0 ? "+" : ""}${value}%`;
+}
 
-  return (
+return (
     <div className="app">
       <header className="hero">
         <div>
@@ -215,7 +232,7 @@ setBacktestLoading(false);
         {loading && <h3>Yükleniyor...</h3>}
 
         {!loading &&
-          filteredNews.map((item) => {
+          topOpportunities.map((item) => {
             const analysis = analyzeDisclosure(item);
             const opportunity = getOpportunityScore(analysis, {
   rating: analysis.score,
