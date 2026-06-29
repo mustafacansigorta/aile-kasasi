@@ -4,18 +4,29 @@ function round(value, digit = 2) {
 }
 
 function buildPlan({ entry, stop, target1, target2 }) {
-  if (!entry || !stop || !target1) {
+  if (!entry || !stop) {
     return null;
   }
 
+  let safeTarget1 = target1;
+  let safeTarget2 = target2;
+
+  if (!safeTarget1 || safeTarget1 <= entry) {
+    safeTarget1 = entry + (entry - stop) * 2;
+  }
+
+  if (!safeTarget2 || safeTarget2 <= safeTarget1) {
+    safeTarget2 = entry + (entry - stop) * 3;
+  }
+
   const risk = entry - stop;
-  const reward = target1 - entry;
+  const reward = safeTarget1 - entry;
 
   return {
     entry: round(entry),
     stop: round(stop),
-    target1: round(target1),
-    target2: round(target2),
+    target1: round(safeTarget1),
+    target2: round(safeTarget2),
     riskReward: risk > 0 ? round(reward / risk) : null,
   };
 }
