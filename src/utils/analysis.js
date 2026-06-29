@@ -104,38 +104,46 @@ export function analyzeDisclosure(item = {}) {
     reportTitle: subject || "KAP Bildirimi",
   };
 }
-export function classifyKap(item = {}) {
+function classifyKap(item = {}) {
   const subject = item.subject || "";
   const summary = item.summary || "";
-  const text = `${subject} ${summary}`.toLowerCase();
+  const title = item.kapTitle || item.title || "";
+  const text = `${subject} ${summary} ${title}`.toLowerCase();
 
   if (text.includes("esas sözleşme") || text.includes("ana sözleşme")) {
-  return "Esas Sözleşme";
-}
-
-if (text.includes("yeni iş ilişkisi")) {
-  return "Yeni İş İlişkisi";
-}
-
-if (
-  text.includes("satış sözleşmesi") ||
-  text.includes("tedarik sözleşmesi") ||
-  text.includes("iş sözleşmesi") ||
-  text.includes("sözleşme imzalan")
-) {
-  return "Sözleşme / İş İlişkisi";
-}
-
-  if (text.includes("ihale")) {
-    return "İhale";
+    return "Esas Sözleşme";
   }
 
-  if (text.includes("kar payı") || text.includes("temettü")) {
-    if (text.includes("dağıtılmaması")) return "Kar Payı Dağıtılmaması";
+  if (text.includes("yeni iş ilişkisi")) {
+    return "Yeni İş İlişkisi";
+  }
+
+  if (
+    text.includes("sözleşme imzalan") ||
+    text.includes("satış sözleşmesi") ||
+    text.includes("tedarik sözleşmesi") ||
+    text.includes("iş sözleşmesi")
+  ) {
+    return "Sözleşme / İş İlişkisi";
+  }
+
+  if (text.includes("ihale") || text.includes("teklif verilmesi")) {
+    return "İhale / Teklif";
+  }
+
+  if (text.includes("kar payı") || text.includes("kâr payı") || text.includes("temettü")) {
+    if (
+      text.includes("dağıtılmaması") ||
+      text.includes("dağıtmama") ||
+      text.includes("dağıtılmayacak")
+    ) {
+      return "Kar Payı Dağıtılmaması";
+    }
+
     return "Kar Payı";
   }
 
-  if (text.includes("pay geri alım")) {
+  if (text.includes("pay geri alım") || text.includes("geri alım programı")) {
     return "Pay Geri Alım";
   }
 
@@ -147,28 +155,98 @@ if (
     return "Bedelli Sermaye Artırımı";
   }
 
-  if (text.includes("sermaye artırımı")) {
+  if (text.includes("sermaye artırımı") || text.includes("sermaye artırım")) {
     return "Sermaye Artırımı";
   }
 
-  if (text.includes("kredi derecelendirme")) {
-    return "Kredi Derecelendirme";
+  if (
+    text.includes("finansal rapor") ||
+    text.includes("finansal tablo") ||
+    text.includes("bilanço") ||
+    text.includes("faaliyet raporu")
+  ) {
+    return "Finansal Rapor";
+  }
+
+  if (
+    text.includes("özel durum açıklaması") ||
+    text.includes("maddi duran varlık") ||
+    text.includes("bağlı ortaklık")
+  ) {
+    return "Özel Durum";
+  }
+
+  if (
+    text.includes("genel kurul") ||
+    text.includes("olağan genel kurul") ||
+    text.includes("olağanüstü genel kurul")
+  ) {
+    return "Genel Kurul";
+  }
+
+  if (
+    text.includes("pay alım satım") ||
+    text.includes("pay alım") ||
+    text.includes("pay satım") ||
+    text.includes("yönetici işlemleri")
+  ) {
+    return "Yönetici / Ortak İşlemi";
+  }
+
+  if (text.includes("halka arz")) {
+    return "Halka Arz";
   }
 
   if (text.includes("devre kesici")) {
     return "Devre Kesici";
   }
 
-  if (text.includes("genel kurul")) {
-    return "Genel Kurul";
+  if (
+    text.includes("kredi derecelendirme") ||
+    text.includes("derecelendirme notu") ||
+    text.includes("kredi notu")
+  ) {
+    return "Kredi Derecelendirme";
   }
 
-  if (text.includes("pay alım satım")) {
-    return "Pay Alım Satım";
+  if (
+    text.includes("borçlanma aracı") ||
+    text.includes("tahvil") ||
+    text.includes("sukuk") ||
+    text.includes("finansman bonosu")
+  ) {
+    return "Borçlanma Aracı";
   }
 
-  if (text.includes("halka arz")) {
-    return "Halka Arz";
+  if (
+    text.includes("pay dışında sermaye piyasası aracı") ||
+    text.includes("varant") ||
+    text.includes("sertifika")
+  ) {
+    return "Sermaye Piyasası Aracı";
+  }
+
+  if (
+    text.includes("yatırım") ||
+    text.includes("kapasite artışı") ||
+    text.includes("teşvik")
+  ) {
+    return "Yatırım / Teşvik";
+  }
+
+  if (
+    text.includes("birleşme") ||
+    text.includes("devralma") ||
+    text.includes("satın alma")
+  ) {
+    return "Birleşme / Satın Alma";
+  }
+
+  if (
+    text.includes("şirket genel bilgi formu") ||
+    text.includes("genel bilgi formu")
+  ) {
+    return "Şirket Genel Bilgi Formu";
   }
 
   return "Diğer";
