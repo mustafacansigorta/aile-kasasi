@@ -113,31 +113,50 @@ export function calculateTradeSetup(analysis = {}) {
     risk = "MEDIUM";
   }
 
-  let action = "WAIT";
+  let finalScore = score;
 
-  if (score >= 80 && risk !== "HIGH") {
-    action = "BUY";
-  } else if (score >= 60) {
-    action = "WATCH";
-  } else if (score >= 40) {
-    action = "WEAK_WATCH";
-  } else {
-    action = "AVOID";
-  }
+// Risk yüksekse skoru tavanla
+if (risk === "HIGH") {
+  finalScore = Math.min(finalScore, 65);
+}
 
-  let status = "Zayıf";
-  let level = "weak";
+// VWAP altındaysa güçlü alım olamaz
+if (!isAboveVWAP) {
+  finalScore = Math.min(finalScore, 60);
+}
 
-  if (score >= 80) {
-    status = "Güçlü Alım";
-    level = "strong";
-  } else if (score >= 60) {
-    status = "Takip Edilebilir";
-    level = "watch";
-  } else if (score >= 40) {
-    status = "Zayıf Takip";
-    level = "neutral";
-  }
+// Günlük performans negatifse ekstra tavan
+if (dayChange < 0) {
+  finalScore = Math.min(finalScore, 70);
+}
+
+let action = "WAIT";
+
+if (finalScore >= 80 && risk !== "HIGH" && isAboveVWAP) {
+  action = "BUY";
+} else if (finalScore >= 60) {
+  action = "WATCH";
+} else if (finalScore >= 40) {
+  action = "WEAK_WATCH";
+} else {
+  action = "AVOID";
+}
+
+let status = "Zayıf";
+let level = "weak";
+
+if (finalScore >= 80 && risk !== "HIGH" && isAboveVWAP) {
+  status = "Güçlü Alım";
+  level = "strong";
+} else if (finalScore >= 60) {
+  status = "Takip Edilebilir";
+  level = "watch";
+} else if (finalScore >= 40) {
+  status = "Zayıf Takip";
+  level = "neutral";
+}
+
+score = Math.max(0, Math.min(100, Math.round(finalScore)));
 
   let confidence = 50;
 
@@ -147,7 +166,7 @@ export function calculateTradeSetup(analysis = {}) {
   if (rvol && rvol > 1.5) confidence += 15;
   if (risk === "HIGH") confidence -= 20;
 
-  score = Math.max(0, Math.min(100, Math.round(score)));
+  
   confidence = Math.max(0, Math.min(100, Math.round(confidence)));
 
   return {
