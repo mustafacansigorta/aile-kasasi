@@ -73,9 +73,17 @@ export function calculateRVOL(candles = [], lookback = 20) {
 
 export function analyzeCandles(candles = []) {
   if (!candles.length) {
+    const swings = findSwingLevels(candles);
+const supportResistance = findSupportResistance(candles);
+const openingRange = calculateOpeningRange(candles, 15);
     return {
       success: false,
       error: "Mum verisi yok.",
+      support: supportResistance.support,
+resistance: supportResistance.resistance,
+lastSwingHigh: swings.lastSwingHigh,
+lastSwingLow: swings.lastSwingLow,
+openingRange,
     };
   }
 
@@ -138,5 +146,98 @@ export function analyzeCandles(candles = []) {
       dayHigh > 0
         ? Number((((dayHigh - lastClose) / dayHigh) * 100).toFixed(2))
         : null,
+  };
+}
+export function findSwingLevels(candles = [], lookback = 3) {
+  const swingHighs = [];
+  const swingLows = [];
+
+  for (let i = lookback; i < candles.length - lookback; i++) {
+    const current = candles[i];
+
+    const left = candles.slice(i - lookback, i);
+    const right = candles.slice(i + 1, i + 1 + lookback);
+
+    const isSwingHigh =
+      left.every((c) => current.high >= c.high) &&
+      right.every((c) => current.high >= c.high);
+
+    const isSwingLow =
+      left.every((c) => current.low <= c.low) &&
+      right.every((c) => current.low <= c.low);
+
+    if (isSwingHigh) {
+      swingHighs.push({
+        price: current.high,
+        time: current.time,
+      });
+    }
+
+    if (isSwingLow) {
+      swingLows.push({
+        price: current.low,
+        time: current.time,
+      });
+    }
+  }
+
+  return {
+    swingHighs,
+    swingLows,
+    lastSwingHigh: swingHighs.at(-1) || null,
+    lastSwingLow: swingLows.at(-1) || null,
+  };
+}
+
+export function findSupportResistance(candles = []) {
+  if (!candles.length) {
+    return {
+      support: null,
+      resistance: null,
+    };
+  }
+
+  const lastPrice = candles[candles.length - 1].close;
+
+  const levels = [];
+
+  candles.forEach((candle) => {
+    levels.push(candle.high);
+    levels.push(candle.low);
+  });
+
+  const roundedLevels = levels
+    .filter((level) => typeof level === "number")
+    .map((level) => Number(level.toFixed(2)));
+
+  const uniqueLevels = [...new Set(roundedLevels)];
+
+  const supportCandidates = uniqueLevels
+    .filter((level) => level < lastPrice)
+    .sort((a, b) => b - a);
+
+  const resistanceCandidates = uniqueLevels
+    .filter((level) => level > lastPrice)
+    .sort((a, b) => a - b);
+
+  return {
+    support: supportCandidates[0] || null,
+    resistance: resistanceCandidates[0] || null,
+  };
+}
+
+export function calculateOpeningRange(candles = [], minutes = 15) {
+  const openingCandles = candles.slice(0, minutes);
+
+  if (!openingCandles.length) {
+    return {
+      high: null,
+      low: null,
+    };
+  }
+
+  return {
+    high: Math.max(...openingCandles.map((c) => c.high || 0)),
+    low: Math.min(...openingCandles.map((c) => c.low || Infinity)),
   };
 }
