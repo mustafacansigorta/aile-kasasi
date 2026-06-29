@@ -3,9 +3,22 @@ function classifyKap(item = {}) {
   const summary = item.summary || "";
   const text = `${subject} ${summary}`.toLowerCase();
 
-  if (text.includes("yeni iş ilişkisi") || text.includes("sözleşme")) {
-    return "Yeni İş İlişkisi";
-  }
+  if (text.includes("esas sözleşme") || text.includes("ana sözleşme")) {
+  return "Esas Sözleşme";
+}
+
+if (text.includes("yeni iş ilişkisi")) {
+  return "Yeni İş İlişkisi";
+}
+
+if (
+  text.includes("satış sözleşmesi") ||
+  text.includes("tedarik sözleşmesi") ||
+  text.includes("iş sözleşmesi") ||
+  text.includes("sözleşme imzalan")
+) {
+  return "Sözleşme / İş İlişkisi";
+}
 
   if (text.includes("ihale")) {
     return "İhale";
