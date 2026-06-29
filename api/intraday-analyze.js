@@ -12,7 +12,8 @@ export default async function handler(req, res) {
       });
     }
 
-    const yahooSymbol = `${symbol.toUpperCase()}.IS`;
+    const cleanSymbol = symbol.toUpperCase().replace(".IS", "");
+    const yahooSymbol = `${cleanSymbol}.IS`;
 
     const period2 = Math.floor(Date.now() / 1000);
     const period1 = period2 - 2 * 24 * 60 * 60;
@@ -59,7 +60,6 @@ export default async function handler(req, res) {
           typeof c.volume === "number"
       );
 
-    // Canlı ama henüz tamamlanmamış volume 0 mumları temizliyoruz
     const cleanCandles = candles.filter((c) => c.volume > 0);
 
     const analysis = analyzeCandles(cleanCandles);
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      symbol: symbol.toUpperCase(),
+      symbol: cleanSymbol,
       yahooSymbol,
       candleCount: cleanCandles.length,
       analysis,

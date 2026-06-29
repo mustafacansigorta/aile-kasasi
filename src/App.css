@@ -365,3 +365,58 @@ footer {
 .opportunity.weak {
   background: #fef2f2;
 }
+.toolbar {
+  padding: 18px 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.toolbar input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  padding: 13px 14px;
+  font-size: 15px;
+  outline: none;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.filters button {
+  border: 0;
+  background: #111827;
+  color: white;
+  border-radius: 12px;
+  padding: 10px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ai-result {
+  padding: 16px;
+  border-radius: 18px;
+  margin: 12px 0;
+  background: #f3f4f6;
+}
+
+.ai-result.strong {
+  background: #dcfce7;
+}
+
+.ai-result.watch {
+  background: #fef9c3;
+}
+
+.ai-result.neutral {
+  background: #ffedd5;
+}
+
+.ai-result.weak {
+  background: #fee2e2;
+}

@@ -459,10 +459,30 @@ export default function App() {
                           <h4>📡 Gün İçi Trade Setup</h4>
 
                           <div className={`ai-result ${tradeSetup.level}`}>
-                            <h2>{tradeSetup.status}</h2>
-                            <h1>{tradeSetup.score}/100</h1>
-                            <p>İşlem Kalitesi</p>
-                          </div>
+  <h2>{tradeSetup.status}</h2>
+  <h1>{tradeSetup.score}/100</h1>
+  <p>İşlem Kalitesi</p>
+
+  <p>
+    <strong>Aksiyon:</strong> {tradeSetup.action}
+  </p>
+
+  <p>
+    <strong>Risk:</strong> {tradeSetup.risk}
+  </p>
+
+  <p>
+    <strong>Güven:</strong> {tradeSetup.confidence}/100
+  </p>
+
+  <p>
+    <strong>Trend:</strong> {tradeSetup.trend}
+  </p>
+
+  <p>
+    <strong>Kısa Vade:</strong> {tradeSetup.shortTerm}
+  </p>
+</div>
 
                           <h4>Sebepler</h4>
                           <ul>
