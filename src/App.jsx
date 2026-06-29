@@ -5,6 +5,7 @@ import { analyzeDisclosure, getShortCompanyName } from "./utils/analysis";
 export default function App() {
   const [news, setNews] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [impact, setImpact] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -29,42 +30,67 @@ export default function App() {
               title: item.kapTitle,
               subReportIds: [item.subject],
             }))
-            .sort((a, b) => {
-              return analyzeDisclosure(b).score - analyzeDisclosure(a).score;
-            })
+            .sort(
+              (a, b) =>
+                analyzeDisclosure(b).score - analyzeDisclosure(a).score
+            )
         );
       }
     } catch (e) {
       console.log(e);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   async function openDetail(item) {
     setDetailLoading(true);
     setSelected(item);
+    setImpact(null);
 
     try {
-      const res = await fetch("/api/kap-detail?id=" + item.disclosureIndex);
-      const json = await res.json();
+      const detailRes = await fetch(
+        "/api/kap-detail?id=" + item.disclosureIndex
+      );
+      const detailJson = await detailRes.json();
 
-      if (json.success) {
+      if (detailJson.success) {
         setSelected({
           ...item,
-          detail: json.data,
+          detail: detailJson.data,
         });
+      }
+
+      const symbol = item.stockCodes?.split(",")[0]?.trim();
+
+      if (symbol && item.publishDate) {
+        const kapDate = item.publishDate
+          .split(" ")[0]
+          .split(".")
+          .reverse()
+          .join("-");
+
+        const impactRes = await fetch(
+          `/api/kap-impact?symbol=${symbol}&date=${kapDate}`
+        );
+
+        const impactJson = await impactRes.json();
+
+        if (impactJson.success) {
+          setImpact(impactJson);
+        }
       }
     } catch (e) {
       console.log(e);
+    } finally {
+      setDetailLoading(false);
     }
-
-    setDetailLoading(false);
   }
 
   const filteredNews = useMemo(() => {
     return news.filter((item) => {
       const analysis = analyzeDisclosure(item);
+
       const text = `
         ${item.kapTitle || ""}
         ${item.stockCodes || ""}
@@ -99,6 +125,11 @@ export default function App() {
           news.length
       )
     : 0;
+
+  function renderPerformance(value) {
+    if (value === null || value === undefined) return "-";
+    return `${value > 0 ? "+" : ""}${value}%`;
+  }
 
   return (
     <div className="app">
@@ -199,46 +230,101 @@ export default function App() {
               <h2>Yükleniyor...</h2>
             ) : (
               <div className="detail-box">
-  {(() => {
-    const analysis = analyzeDisclosure(selected);
+                {(() => {
+                  const analysis = analyzeDisclosure(selected);
 
-    return (
-      <>
-        <h2>{selected.stockCodes || selected.relatedStocks || "KAP"}</h2>
-        <h3>{selected.subject}</h3>
+                  return (
+                    <>
+                      <h2>
+                        {selected.stockCodes ||
+                          selected.relatedStocks ||
+                          "KAP"}
+                      </h2>
+                      <h3>{selected.subject}</h3>
 
-        <div className="ai-box">
-          <span className={`badge ${analysis.badge}`}>
-            {analysis.effect}
-          </span>
+                      <div className="ai-box">
+                        <span className={`badge ${analysis.badge}`}>
+                          {analysis.effect}
+                        </span>
 
-          <div className="score-big">
-            {analysis.score}
-            <small>/100</small>
-          </div>
+                        <div className="score-big">
+                          {analysis.score}
+                          <small>/100</small>
+                        </div>
 
-          <p>{analysis.summary}</p>
-        </div>
+                        <p>{analysis.summary}</p>
+                      </div>
 
-        <h4>📌 KAP Özeti</h4>
-        <p>{selected.summary || "Özet bulunamadı."}</p>
+                      {impact && (
+                        <div className="impact-box">
+                          <h4>📈 Haber Etki Analizi</h4>
 
-        <h4>📄 Bildirim Bilgileri</h4>
-        <p><strong>Şirket:</strong> {selected.kapTitle}</p>
-        <p><strong>Tarih:</strong> {selected.publishDate}</p>
-        <p><strong>Bildirim No:</strong> {selected.disclosureIndex}</p>
+                          <p>
+                            <strong>Baz Tarih:</strong> {impact.baseDate}
+                          </p>
 
-        <a
-          href={`https://www.kap.org.tr/tr/Bildirim/${selected.disclosureIndex}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          KAP’ta Aç
-        </a>
-      </>
-    );
-  })()}
-</div>
+                          <p>
+                            <strong>Baz Fiyat:</strong> {impact.startPrice} TL
+                          </p>
+
+                          <div className="impact-grid">
+                            <div>
+                              <span>1 İşlem Günü</span>
+                              <strong>
+                                {renderPerformance(impact.performance.day1)}
+                              </strong>
+                            </div>
+
+                            <div>
+                              <span>3 İşlem Günü</span>
+                              <strong>
+                                {renderPerformance(impact.performance.day3)}
+                              </strong>
+                            </div>
+
+                            <div>
+                              <span>7 İşlem Günü</span>
+                              <strong>
+                                {renderPerformance(impact.performance.day7)}
+                              </strong>
+                            </div>
+
+                            <div>
+                              <span>30 İşlem Günü</span>
+                              <strong>
+                                {renderPerformance(impact.performance.day30)}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <h4>📌 KAP Özeti</h4>
+                      <p>{selected.summary || "Özet bulunamadı."}</p>
+
+                      <h4>📄 Bildirim Bilgileri</h4>
+                      <p>
+                        <strong>Şirket:</strong> {selected.kapTitle}
+                      </p>
+                      <p>
+                        <strong>Tarih:</strong> {selected.publishDate}
+                      </p>
+                      <p>
+                        <strong>Bildirim No:</strong>{" "}
+                        {selected.disclosureIndex}
+                      </p>
+
+                      <a
+                        href={`https://www.kap.org.tr/tr/Bildirim/${selected.disclosureIndex}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        KAP’ta Aç
+                      </a>
+                    </>
+                  );
+                })()}
+              </div>
             )}
           </div>
         </div>
