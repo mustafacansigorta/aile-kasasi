@@ -71,83 +71,6 @@ export function calculateRVOL(candles = [], lookback = 20) {
   });
 }
 
-export function analyzeCandles(candles = []) {
-  if (!candles.length) {
-    const swings = findSwingLevels(candles);
-const supportResistance = findSupportResistance(candles);
-const openingRange = calculateOpeningRange(candles, 15);
-    return {
-      success: false,
-      error: "Mum verisi yok.",
-      support: supportResistance.support,
-resistance: supportResistance.resistance,
-lastSwingHigh: swings.lastSwingHigh,
-lastSwingLow: swings.lastSwingLow,
-openingRange,
-    };
-  }
-
-  const withVWAP = calculateVWAP(candles);
-  const withRVOL = calculateRVOL(withVWAP);
-
-  const closes = candles.map((c) => c.close || 0);
-
-  const ema9 = calculateEMA(closes, 9);
-  const ema21 = calculateEMA(closes, 21);
-  const ema50 = calculateEMA(closes, 50);
-  const atr = calculateATR(candles, 14);
-
-  const lastIndex = candles.length - 1;
-  const last = withRVOL[lastIndex];
-
-  const dayHigh = Math.max(...candles.map((c) => c.high || 0));
-  const dayLow = Math.min(...candles.map((c) => c.low || Infinity));
-
-  const first = candles[0];
-  const lastClose = last.close || 0;
-
-  const dayChange =
-    first.open > 0 ? Number((((lastClose - first.open) / first.open) * 100).toFixed(2)) : null;
-
-  const momentum5 =
-    candles.length >= 5
-      ? Number(
-          (((lastClose - candles[candles.length - 5].close) /
-            candles[candles.length - 5].close) *
-            100).toFixed(2)
-        )
-      : null;
-
-  const momentum15 =
-    candles.length >= 15
-      ? Number(
-          (((lastClose - candles[candles.length - 15].close) /
-            candles[candles.length - 15].close) *
-            100).toFixed(2)
-        )
-      : null;
-
-  return {
-    success: true,
-    lastPrice: lastClose,
-    dayHigh,
-    dayLow,
-    dayChange,
-    vwap: last.vwap ? Number(last.vwap.toFixed(2)) : null,
-    rvol: last.rvol ? Number(last.rvol.toFixed(2)) : null,
-    ema9: ema9[lastIndex] ? Number(ema9[lastIndex].toFixed(2)) : null,
-    ema21: ema21[lastIndex] ? Number(ema21[lastIndex].toFixed(2)) : null,
-    ema50: ema50[lastIndex] ? Number(ema50[lastIndex].toFixed(2)) : null,
-    atr: atr[lastIndex] ? Number(atr[lastIndex].toFixed(2)) : null,
-    momentum5,
-    momentum15,
-    isAboveVWAP: last.vwap ? lastClose > last.vwap : null,
-    isNearHigh:
-      dayHigh > 0
-        ? Number((((dayHigh - lastClose) / dayHigh) * 100).toFixed(2))
-        : null,
-  };
-}
 export function findSwingLevels(candles = [], lookback = 3) {
   const swingHighs = [];
   const swingLows = [];
@@ -168,14 +91,14 @@ export function findSwingLevels(candles = [], lookback = 3) {
 
     if (isSwingHigh) {
       swingHighs.push({
-        price: current.high,
+        price: Number(current.high.toFixed(2)),
         time: current.time,
       });
     }
 
     if (isSwingLow) {
       swingLows.push({
-        price: current.low,
+        price: Number(current.low.toFixed(2)),
         time: current.time,
       });
     }
@@ -198,18 +121,14 @@ export function findSupportResistance(candles = []) {
   }
 
   const lastPrice = candles[candles.length - 1].close;
-
   const levels = [];
 
   candles.forEach((candle) => {
-    levels.push(candle.high);
-    levels.push(candle.low);
+    if (typeof candle.high === "number") levels.push(candle.high);
+    if (typeof candle.low === "number") levels.push(candle.low);
   });
 
-  const roundedLevels = levels
-    .filter((level) => typeof level === "number")
-    .map((level) => Number(level.toFixed(2)));
-
+  const roundedLevels = levels.map((level) => Number(level.toFixed(2)));
   const uniqueLevels = [...new Set(roundedLevels)];
 
   const supportCandidates = uniqueLevels
@@ -237,7 +156,101 @@ export function calculateOpeningRange(candles = [], minutes = 15) {
   }
 
   return {
-    high: Math.max(...openingCandles.map((c) => c.high || 0)),
-    low: Math.min(...openingCandles.map((c) => c.low || Infinity)),
+    high: Number(
+      Math.max(...openingCandles.map((c) => c.high || 0)).toFixed(2)
+    ),
+    low: Number(
+      Math.min(...openingCandles.map((c) => c.low || Infinity)).toFixed(2)
+    ),
+  };
+}
+
+export function analyzeCandles(candles = []) {
+  if (!candles.length) {
+    return {
+      success: false,
+      error: "Mum verisi yok.",
+    };
+  }
+
+  const withVWAP = calculateVWAP(candles);
+  const withRVOL = calculateRVOL(withVWAP);
+
+  const closes = candles.map((c) => c.close || 0);
+
+  const ema9 = calculateEMA(closes, 9);
+  const ema21 = calculateEMA(closes, 21);
+  const ema50 = calculateEMA(closes, 50);
+  const atr = calculateATR(candles, 14);
+
+  const lastIndex = candles.length - 1;
+  const last = withRVOL[lastIndex];
+
+  const dayHigh = Math.max(...candles.map((c) => c.high || 0));
+  const dayLow = Math.min(...candles.map((c) => c.low || Infinity));
+
+  const first = candles[0];
+  const lastClose = last.close || 0;
+
+  const dayChange =
+    first.open > 0
+      ? Number((((lastClose - first.open) / first.open) * 100).toFixed(2))
+      : null;
+
+  const momentum5 =
+    candles.length >= 5
+      ? Number(
+          (
+            ((lastClose - candles[candles.length - 5].close) /
+              candles[candles.length - 5].close) *
+            100
+          ).toFixed(2)
+        )
+      : null;
+
+  const momentum15 =
+    candles.length >= 15
+      ? Number(
+          (
+            ((lastClose - candles[candles.length - 15].close) /
+              candles[candles.length - 15].close) *
+            100
+          ).toFixed(2)
+        )
+      : null;
+
+  const swings = findSwingLevels(candles);
+  const supportResistance = findSupportResistance(candles);
+  const openingRange = calculateOpeningRange(candles, 15);
+
+  return {
+    success: true,
+    lastPrice: Number(lastClose.toFixed(2)),
+    dayHigh: Number(dayHigh.toFixed(2)),
+    dayLow: Number(dayLow.toFixed(2)),
+    dayChange,
+
+    vwap: last.vwap ? Number(last.vwap.toFixed(2)) : null,
+    rvol: last.rvol ? Number(last.rvol.toFixed(2)) : null,
+
+    ema9: ema9[lastIndex] ? Number(ema9[lastIndex].toFixed(2)) : null,
+    ema21: ema21[lastIndex] ? Number(ema21[lastIndex].toFixed(2)) : null,
+    ema50: ema50[lastIndex] ? Number(ema50[lastIndex].toFixed(2)) : null,
+    atr: atr[lastIndex] ? Number(atr[lastIndex].toFixed(2)) : null,
+
+    momentum5,
+    momentum15,
+
+    isAboveVWAP: last.vwap ? lastClose > last.vwap : null,
+    isNearHigh:
+      dayHigh > 0
+        ? Number((((dayHigh - lastClose) / dayHigh) * 100).toFixed(2))
+        : null,
+
+    support: supportResistance.support,
+    resistance: supportResistance.resistance,
+    lastSwingHigh: swings.lastSwingHigh,
+    lastSwingLow: swings.lastSwingLow,
+    openingRange,
   };
 }
