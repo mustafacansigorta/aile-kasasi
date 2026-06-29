@@ -8,12 +8,16 @@ export default function App() {
   const [news, setNews] = useState([]);
   const [selected, setSelected] = useState(null);
   const [impact, setImpact] = useState(null);
+  const [backtest, setBacktest] = useState(null);
+  const [tradeSetup, setTradeSetup] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [backtestLoading, setBacktestLoading] = useState(false);
+  const [tradeSetupLoading, setTradeSetupLoading] = useState(false);
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
-  const [backtest, setBacktest] = useState(null);
-const [backtestLoading, setBacktestLoading] = useState(false);
 
   useEffect(() => {
     loadNews();
@@ -48,35 +52,16 @@ const [backtestLoading, setBacktestLoading] = useState(false);
   }
 
   async function openDetail(item) {
-    setBacktestLoading(true);
-
-try {
-  const params = new URLSearchParams({
-    subject: item.subject || "",
-    summary: item.summary || "",
-    stockCodes: item.stockCodes || "",
-    days: "365",
-    minSimilarity: "70",
-    maxAnalyze: "20",
-  });
-
-  const bt = await fetch("/api/kap-backtest?" + params);
-
-  const btJson = await bt.json();
-
-  if (btJson.success) {
-    setBacktest(btJson);
-  } else {
-    setBacktest(null);
-  }
-} catch {
-  setBacktest(null);
-}
-
-setBacktestLoading(false);
-    setDetailLoading(true);
     setSelected(item);
     setImpact(null);
+    setBacktest(null);
+    setTradeSetup(null);
+
+    setDetailLoading(true);
+    setBacktestLoading(true);
+    setTradeSetupLoading(true);
+
+    const symbol = item.stockCodes?.split(",")[0]?.trim();
 
     try {
       const detailRes = await fetch(
@@ -90,10 +75,39 @@ setBacktestLoading(false);
           detail: detailJson.data,
         });
       }
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setDetailLoading(false);
+    }
 
-      const symbol = item.stockCodes?.split(",")[0]?.trim();
+    try {
+      const params = new URLSearchParams({
+        subject: item.subject || "",
+        summary: item.summary || "",
+        stockCodes: item.stockCodes || "",
+        days: "365",
+        minSimilarity: "70",
+        maxAnalyze: "20",
+      });
 
-      if (symbol && item.publishDate) {
+      const bt = await fetch("/api/kap-backtest?" + params);
+      const btJson = await bt.json();
+
+      if (btJson.success) {
+        setBacktest(btJson);
+      } else {
+        setBacktest(null);
+      }
+    } catch (e) {
+      console.log(e);
+      setBacktest(null);
+    } finally {
+      setBacktestLoading(false);
+    }
+
+    if (symbol && item.publishDate) {
+      try {
         const kapDate = item.publishDate
           .split(" ")[0]
           .split(".")
@@ -109,92 +123,117 @@ setBacktestLoading(false);
         if (impactJson.success) {
           setImpact(impactJson);
         }
+      } catch (e) {
+        console.log(e);
       }
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setDetailLoading(false);
+    }
+
+    if (symbol) {
+      try {
+        const tradeRes = await fetch(`/api/intraday-analyze?symbol=${symbol}`);
+        const tradeJson = await tradeRes.json();
+
+        if (tradeJson.success) {
+          setTradeSetup(tradeJson.tradeSetup);
+        } else {
+          setTradeSetup(null);
+        }
+      } catch (e) {
+        console.log(e);
+        setTradeSetup(null);
+      } finally {
+        setTradeSetupLoading(false);
+      }
+    } else {
+      setTradeSetupLoading(false);
     }
   }
 
   const topOpportunities = useMemo(() => {
-  return news
-    .map((item) => {
-      const analysis = analyzeDisclosure(item);
+    return news
+      .map((item) => {
+        const analysis = analyzeDisclosure(item);
 
-      const opportunity = getOpportunityScore(analysis, {
-        rating: analysis.score,
-        confidence: 50,
-        probability: analysis.score,
-      });
+        const opportunity = getOpportunityScore(analysis, {
+          rating: analysis.score,
+          confidence: 50,
+          probability: analysis.score,
+        });
 
-      return {
-        ...item,
-        analysis,
-        opportunity,
-      };
-    })
-    .filter((item) => {
-      const text = `
-        ${item.kapTitle || ""}
-        ${item.stockCodes || ""}
-        ${item.relatedStocks || ""}
-        ${item.subject || ""}
-        ${item.summary || ""}
-      `.toLowerCase();
+        return {
+          ...item,
+          analysis,
+          opportunity,
+        };
+      })
+      .filter((item) => {
+        const text = `
+          ${item.kapTitle || ""}
+          ${item.stockCodes || ""}
+          ${item.relatedStocks || ""}
+          ${item.subject || ""}
+          ${item.summary || ""}
+        `.toLowerCase();
 
-      const matchesSearch = text.includes(search.toLowerCase());
+        const matchesSearch = text.includes(search.toLowerCase());
 
-      const isOpportunity =
-  item.analysis.score >= 70 ||
-  item.analysis.badge === "positive" ||
-  item.opportunity.score >= 70;
+        const isOpportunity =
+          item.analysis.score >= 70 ||
+          item.analysis.badge === "positive" ||
+          item.opportunity.score >= 70;
 
-const matchesFilter =
-  filter === "all" ||
-  (filter === "positive" && item.analysis.badge === "positive") ||
-  (filter === "important" && item.analysis.score >= 70) ||
-  (filter === "low" && item.opportunity.score < 70);
+        const matchesFilter =
+          filter === "all" ||
+          (filter === "positive" && item.analysis.badge === "positive") ||
+          (filter === "important" && item.analysis.score >= 70) ||
+          (filter === "low" && item.opportunity.score < 70);
 
-return matchesSearch && isOpportunity && matchesFilter;
-    })
-    .sort((a, b) => b.opportunity.score - a.opportunity.score)
-    .slice(0, 20);
-}, [news, search, filter]);
+        return matchesSearch && isOpportunity && matchesFilter;
+      })
+      .sort((a, b) => b.opportunity.score - a.opportunity.score)
+      .slice(0, 20);
+  }, [news, search, filter]);
 
-const importantCount = topOpportunities.filter(
-  (item) => item.analysis.score >= 70
-).length;
+  const importantCount = topOpportunities.filter(
+    (item) => item.analysis.score >= 70
+  ).length;
 
-const positiveCount = topOpportunities.filter(
-  (item) => item.analysis.badge === "positive"
-).length;
+  const positiveCount = topOpportunities.filter(
+    (item) => item.analysis.badge === "positive"
+  ).length;
 
-const marketScore = topOpportunities.length
-  ? Math.round(
-      topOpportunities.reduce(
-        (sum, item) => sum + item.opportunity.score,
-        0
-      ) / topOpportunities.length
-    )
-  : 0;
+  const marketScore = topOpportunities.length
+    ? Math.round(
+        topOpportunities.reduce(
+          (sum, item) => sum + item.opportunity.score,
+          0
+        ) / topOpportunities.length
+      )
+    : 0;
 
-function renderPerformance(value) {
-  if (value === null || value === undefined) return "-";
-  return `${value > 0 ? "+" : ""}${value}%`;
-}
+  function renderPerformance(value) {
+    if (value === null || value === undefined) return "-";
+    return `${value > 0 ? "+" : ""}${value}%`;
+  }
 
-return (
+  function closeModal() {
+    setSelected(null);
+    setBacktest(null);
+    setImpact(null);
+    setTradeSetup(null);
+  }
+
+  return (
     <div className="app">
       <header className="hero">
         <div>
           <h1>BorsaIQ</h1>
-          <p>Canlı KAP haberlerini sadeleştirir.</p>
+          <p>AI destekli KAP ve işlem fırsatı radarı.</p>
         </div>
 
         <div className="market-score">
           <span>{marketScore}</span>
-          <small>Piyasa Skoru</small>
+          <small>AI Skoru</small>
         </div>
       </header>
 
@@ -204,7 +243,7 @@ return (
         <div className="summary-grid">
           <div>
             <strong>{topOpportunities.length}</strong>
-<span>AI Fırsat</span>
+            <span>AI Fırsat</span>
           </div>
           <div>
             <strong>{importantCount}</strong>
@@ -233,18 +272,15 @@ return (
       </div>
 
       <section className="section">
-        <h2>🔥 Hareket Getirebilecek Haberler</h2>
+        <h2>🤖 AI Fırsat Merkezi</h2>
 
         {loading && <h3>Yükleniyor...</h3>}
 
         {!loading &&
           topOpportunities.map((item) => {
-            const analysis = analyzeDisclosure(item);
-            const opportunity = getOpportunityScore(analysis, {
-  rating: analysis.score,
-  confidence: 50,
-  probability: analysis.score,
-});
+            const analysis = item.analysis;
+            const opportunity = item.opportunity;
+
             const code =
               item.stockCodes ||
               item.relatedStocks ||
@@ -267,13 +303,15 @@ return (
                 <p className="news-summary">
                   {item.summary || analysis.summary}
                 </p>
-<div className={`opportunity ${opportunity.level}`}>
-  <span>{opportunity.stars}</span>
-  <strong>{opportunity.score}/100</strong>
-  <small>{opportunity.label}</small>
-</div>
+
+                <div className={`opportunity ${opportunity.level}`}>
+                  <span>{opportunity.stars}</span>
+                  <strong>{opportunity.score}/100</strong>
+                  <small>{opportunity.label}</small>
+                </div>
+
                 <div className="score-row">
-                  <span>Etki Skoru</span>
+                  <span>Haber Etki Skoru</span>
                   <strong>{analysis.score}/100</strong>
                 </div>
 
@@ -286,15 +324,7 @@ return (
       {selected && (
         <div className="modal">
           <div className="modal-content">
-            <button
-  onClick={() => {
-    setSelected(null);
-    setBacktest(null);
-    setImpact(null);
-  }}
->
-  X
-</button>
+            <button onClick={closeModal}>X</button>
 
             {detailLoading ? (
               <h2>Yükleniyor...</h2>
@@ -324,67 +354,124 @@ return (
 
                         <p>{analysis.summary}</p>
                       </div>
+
                       {backtestLoading && (
-  <div className="impact-box">
-    <h4>🤖 AI Backtest yükleniyor...</h4>
-  </div>
-)}
+                        <div className="impact-box">
+                          <h4>🤖 AI Backtest yükleniyor...</h4>
+                        </div>
+                      )}
 
-{backtest &&
-  (() => {
-    const ai = getAiDecision(backtest);
+                      {backtest &&
+                        (() => {
+                          const ai = getAiDecision(backtest);
 
-    return (
-      <div className="impact-box">
-        <div className={`ai-result ${ai.color}`}>
-          <h3>{ai.stars}</h3>
-          <h2>{ai.title}</h2>
-          <h1>%{ai.probability}</h1>
-          <p>Yükseliş Olasılığı</p>
-          <small>Güven Skoru: {ai.confidence}/100</small>
-        </div>
+                          return (
+                            <div className="impact-box">
+                              <div className={`ai-result ${ai.color}`}>
+                                <h3>{ai.stars}</h3>
+                                <h2>{ai.title}</h2>
+                                <h1>%{ai.probability}</h1>
+                                <p>Yükseliş Olasılığı</p>
+                                <small>
+                                  Güven Skoru: {ai.confidence}/100
+                                </small>
+                              </div>
 
-        <h4>🤖 AI Backtest Analizi</h4>
+                              <h4>🤖 AI Backtest Analizi</h4>
 
-        <p>
-          <strong>Benzer Haber:</strong> {backtest.analyzedCount} adet
-        </p>
+                              <p>
+                                <strong>Benzer Haber:</strong>{" "}
+                                {backtest.analyzedCount} adet
+                              </p>
 
-        <p>
-          <strong>Kategori:</strong> {backtest.currentClass}
-        </p>
+                              <p>
+                                <strong>Kategori:</strong>{" "}
+                                {backtest.currentClass}
+                              </p>
 
-        <div className="impact-grid">
-          <div>
-            <span>1 İşlem Günü</span>
-            <strong>{renderPerformance(backtest.summary.day1.average)}</strong>
-            <small>Başarı: %{backtest.summary.day1.positiveRate ?? "-"}</small>
-          </div>
+                              <div className="impact-grid">
+                                <div>
+                                  <span>1 İşlem Günü</span>
+                                  <strong>
+                                    {renderPerformance(
+                                      backtest.summary.day1.average
+                                    )}
+                                  </strong>
+                                  <small>
+                                    Başarı: %
+                                    {backtest.summary.day1.positiveRate ?? "-"}
+                                  </small>
+                                </div>
 
-          <div>
-            <span>3 İşlem Günü</span>
-            <strong>{renderPerformance(backtest.summary.day3.average)}</strong>
-            <small>Başarı: %{backtest.summary.day3.positiveRate ?? "-"}</small>
-          </div>
+                                <div>
+                                  <span>3 İşlem Günü</span>
+                                  <strong>
+                                    {renderPerformance(
+                                      backtest.summary.day3.average
+                                    )}
+                                  </strong>
+                                  <small>
+                                    Başarı: %
+                                    {backtest.summary.day3.positiveRate ?? "-"}
+                                  </small>
+                                </div>
 
-          <div>
-            <span>7 İşlem Günü</span>
-            <strong>{renderPerformance(backtest.summary.day7.average)}</strong>
-            <small>Başarı: %{backtest.summary.day7.positiveRate ?? "-"}</small>
-          </div>
+                                <div>
+                                  <span>7 İşlem Günü</span>
+                                  <strong>
+                                    {renderPerformance(
+                                      backtest.summary.day7.average
+                                    )}
+                                  </strong>
+                                  <small>
+                                    Başarı: %
+                                    {backtest.summary.day7.positiveRate ?? "-"}
+                                  </small>
+                                </div>
 
-          <div>
-            <span>30 İşlem Günü</span>
-            <strong>{renderPerformance(backtest.summary.day30.average)}</strong>
-            <small>Başarı: %{backtest.summary.day30.positiveRate ?? "-"}</small>
-          </div>
-        </div>
+                                <div>
+                                  <span>30 İşlem Günü</span>
+                                  <strong>
+                                    {renderPerformance(
+                                      backtest.summary.day30.average
+                                    )}
+                                  </strong>
+                                  <small>
+                                    Başarı: %
+                                    {backtest.summary.day30.positiveRate ?? "-"}
+                                  </small>
+                                </div>
+                              </div>
 
-        <p className="ai-comment">{ai.comment}</p>
-      </div>
-    );
-  })()}
+                              <p className="ai-comment">{ai.comment}</p>
+                            </div>
+                          );
+                        })()}
 
+                      {tradeSetupLoading && (
+                        <div className="impact-box">
+                          <h4>📡 Gün İçi Trade Setup yükleniyor...</h4>
+                        </div>
+                      )}
+
+                      {tradeSetup && (
+                        <div className="impact-box">
+                          <h4>📡 Gün İçi Trade Setup</h4>
+
+                          <div className={`ai-result ${tradeSetup.level}`}>
+                            <h2>{tradeSetup.status}</h2>
+                            <h1>{tradeSetup.score}/100</h1>
+                            <p>İşlem Kalitesi</p>
+                          </div>
+
+                          <h4>Sebepler</h4>
+                          <ul>
+                            {tradeSetup.reasons.map((reason, index) => (
+                              <li key={index}>{reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
                       {impact && (
                         <div className="impact-box">
