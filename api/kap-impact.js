@@ -27,7 +27,13 @@ async function getStockHistory(symbol) {
       close: quotes.close?.[index],
       volume: quotes.volume?.[index],
     }))
-    .filter((item) => item.close && item.volume !== 0);
+    .filter(
+  (item) =>
+    typeof item.close === "number" &&
+    item.close > 0 &&
+    item.close < 100000 &&
+    item.volume !== 0
+);
 }
 
 function findNearestTradingDay(data, targetDate) {
@@ -73,7 +79,7 @@ export default async function handler(req, res) {
       symbol: symbol.toUpperCase(),
       kapDate: date,
       baseDate: baseDay.date,
-      startPrice: baseDay.close,
+      startPrice: Number(baseDay.close.toFixed(2)),
       performance: {
         day1: getPerformance(data, baseIndex, 1),
         day3: getPerformance(data, baseIndex, 3),
