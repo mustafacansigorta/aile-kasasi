@@ -327,3 +327,41 @@ footer {
   color: #374151;
   line-height: 1.5;
 }
+.opportunity {
+  margin: 14px 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.opportunity span {
+  display: block;
+  font-size: 18px;
+}
+
+.opportunity strong {
+  display: block;
+  font-size: 24px;
+}
+
+.opportunity small {
+  color: #6b7280;
+}
+
+.opportunity.very-strong,
+.opportunity.strong {
+  background: #ecfdf5;
+}
+
+.opportunity.watch {
+  background: #fffbeb;
+}
+
+.opportunity.speculative {
+  background: #fff7ed;
+}
+
+.opportunity.weak {
+  background: #fef2f2;
+}

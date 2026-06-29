@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { analyzeDisclosure, getShortCompanyName } from "./utils/analysis";
 import { getAiDecision } from "./utils/aiDecision";
+import { getOpportunityScore } from "./utils/opportunityScore";
 
 export default function App() {
   const [news, setNews] = useState([]);
@@ -216,6 +217,11 @@ setBacktestLoading(false);
         {!loading &&
           filteredNews.map((item) => {
             const analysis = analyzeDisclosure(item);
+            const opportunity = getOpportunityScore(analysis, {
+  rating: analysis.score,
+  confidence: 50,
+  probability: analysis.score,
+});
             const code =
               item.stockCodes ||
               item.relatedStocks ||
@@ -238,7 +244,11 @@ setBacktestLoading(false);
                 <p className="news-summary">
                   {item.summary || analysis.summary}
                 </p>
-
+<div className={`opportunity ${opportunity.level}`}>
+  <span>{opportunity.stars}</span>
+  <strong>{opportunity.score}/100</strong>
+  <small>{opportunity.label}</small>
+</div>
                 <div className="score-row">
                   <span>Etki Skoru</span>
                   <strong>{analysis.score}/100</strong>
