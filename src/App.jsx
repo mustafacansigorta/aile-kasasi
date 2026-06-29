@@ -199,31 +199,46 @@ export default function App() {
               <h2>Yükleniyor...</h2>
             ) : (
               <div className="detail-box">
-                <h2>{selected.stockCodes || selected.relatedStocks}</h2>
-                <h3>{selected.subject}</h3>
+  {(() => {
+    const analysis = analyzeDisclosure(selected);
 
-                <h4>📌 Özet</h4>
-                <p>{selected.summary || "Özet bulunamadı."}</p>
+    return (
+      <>
+        <h2>{selected.stockCodes || selected.relatedStocks || "KAP"}</h2>
+        <h3>{selected.subject}</h3>
 
-                <h4>📄 Bildirim Bilgileri</h4>
-                <p>
-                  <strong>Şirket:</strong> {selected.kapTitle}
-                </p>
-                <p>
-                  <strong>Tarih:</strong> {selected.publishDate}
-                </p>
-                <p>
-                  <strong>Bildirim No:</strong> {selected.disclosureIndex}
-                </p>
+        <div className="ai-box">
+          <span className={`badge ${analysis.badge}`}>
+            {analysis.effect}
+          </span>
 
-                <a
-                  href={`https://www.kap.org.tr/tr/Bildirim/${selected.disclosureIndex}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  KAP’ta Aç
-                </a>
-              </div>
+          <div className="score-big">
+            {analysis.score}
+            <small>/100</small>
+          </div>
+
+          <p>{analysis.summary}</p>
+        </div>
+
+        <h4>📌 KAP Özeti</h4>
+        <p>{selected.summary || "Özet bulunamadı."}</p>
+
+        <h4>📄 Bildirim Bilgileri</h4>
+        <p><strong>Şirket:</strong> {selected.kapTitle}</p>
+        <p><strong>Tarih:</strong> {selected.publishDate}</p>
+        <p><strong>Bildirim No:</strong> {selected.disclosureIndex}</p>
+
+        <a
+          href={`https://www.kap.org.tr/tr/Bildirim/${selected.disclosureIndex}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          KAP’ta Aç
+        </a>
+      </>
+    );
+  })()}
+</div>
             )}
           </div>
         </div>

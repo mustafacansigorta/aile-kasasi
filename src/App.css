@@ -265,3 +265,22 @@ footer {
   font-weight: 700;
   cursor: pointer;
 }
+.ai-box {
+  margin: 18px 0;
+  padding: 18px;
+  border-radius: 20px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.score-big {
+  margin: 12px 0;
+  font-size: 42px;
+  font-weight: 900;
+  color: #111827;
+}
+
+.score-big small {
+  font-size: 16px;
+  color: #6b7280;
+}
