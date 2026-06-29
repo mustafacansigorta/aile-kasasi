@@ -115,6 +115,33 @@ export function detectTradeSetup(analysis = {}) {
     Math.abs(lastPrice - vwap) / vwap <= 0.01 &&
     momentum5 > 0
   ) {
+    if (
+  !isAboveVWAP &&
+  strongVolume &&
+  Math.abs(lastPrice - vwap) / vwap <= 0.02 &&
+  momentum5 > 0
+) {
+  return {
+    type: "VWAP_RECOVERY_WAIT",
+    label: "VWAP Geri Kazanım Bekleniyor",
+    icon: "🟡",
+    quality: "neutral",
+    stars: "★★★☆☆",
+    plan: buildPlan({
+      entry: vwap,
+      stop: support || lastSwingLow?.price || lastPrice * 0.99,
+      target1: resistance || lastSwingHigh?.price || vwap * 1.015,
+      target2: vwap * 1.03,
+    }),
+    reasons: [
+      "VWAP altında",
+      "VWAP'a yaklaşmaya çalışıyor",
+      "Hacim güçlü",
+      "Kısa momentum pozitif",
+      "Henüz giriş yok, VWAP üzeri kapanış beklenir",
+    ],
+  };
+}
     return {
       type: "VWAP_RECOVERY",
       label: "VWAP Geri Kazanım Adayı",
