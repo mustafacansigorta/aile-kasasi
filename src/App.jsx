@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { analyzeDisclosure, getShortCompanyName } from "./utils/analysis";
+import { getAiDecision } from "./utils/aiDecision";
 
 export default function App() {
   const [news, setNews] = useState([]);
@@ -252,7 +253,15 @@ setBacktestLoading(false);
       {selected && (
         <div className="modal">
           <div className="modal-content">
-            <button onClick={() => setBacktest(null)}>X</button>
+            <button
+  onClick={() => {
+    setSelected(null);
+    setBacktest(null);
+    setImpact(null);
+  }}
+>
+  X
+</button>
 
             {detailLoading ? (
               <h2>Yükleniyor...</h2>
@@ -288,50 +297,61 @@ setBacktestLoading(false);
   </div>
 )}
 
-{backtest && (
-  <div className="impact-box">
-    <h4>🤖 AI Backtest Analizi</h4>
+{backtest &&
+  (() => {
+    const ai = getAiDecision(backtest);
 
-    <p>
-      <strong>Benzer Haber:</strong> {backtest.analyzedCount} adet
-    </p>
+    return (
+      <div className="impact-box">
+        <div className={`ai-result ${ai.color}`}>
+          <h3>{ai.stars}</h3>
+          <h2>{ai.title}</h2>
+          <h1>%{ai.probability}</h1>
+          <p>Yükseliş Olasılığı</p>
+          <small>Güven Skoru: {ai.confidence}/100</small>
+        </div>
 
-    <p>
-      <strong>Kategori:</strong> {backtest.currentClass}
-    </p>
+        <h4>🤖 AI Backtest Analizi</h4>
 
-    <div className="impact-grid">
-      <div>
-        <span>1 İşlem Günü</span>
-        <strong>{renderPerformance(backtest.summary.day1.average)}</strong>
-        <small>Başarı: %{backtest.summary.day1.positiveRate ?? "-"}</small>
+        <p>
+          <strong>Benzer Haber:</strong> {backtest.analyzedCount} adet
+        </p>
+
+        <p>
+          <strong>Kategori:</strong> {backtest.currentClass}
+        </p>
+
+        <div className="impact-grid">
+          <div>
+            <span>1 İşlem Günü</span>
+            <strong>{renderPerformance(backtest.summary.day1.average)}</strong>
+            <small>Başarı: %{backtest.summary.day1.positiveRate ?? "-"}</small>
+          </div>
+
+          <div>
+            <span>3 İşlem Günü</span>
+            <strong>{renderPerformance(backtest.summary.day3.average)}</strong>
+            <small>Başarı: %{backtest.summary.day3.positiveRate ?? "-"}</small>
+          </div>
+
+          <div>
+            <span>7 İşlem Günü</span>
+            <strong>{renderPerformance(backtest.summary.day7.average)}</strong>
+            <small>Başarı: %{backtest.summary.day7.positiveRate ?? "-"}</small>
+          </div>
+
+          <div>
+            <span>30 İşlem Günü</span>
+            <strong>{renderPerformance(backtest.summary.day30.average)}</strong>
+            <small>Başarı: %{backtest.summary.day30.positiveRate ?? "-"}</small>
+          </div>
+        </div>
+
+        <p className="ai-comment">{ai.comment}</p>
       </div>
+    );
+  })()}
 
-      <div>
-        <span>3 İşlem Günü</span>
-        <strong>{renderPerformance(backtest.summary.day3.average)}</strong>
-        <small>Başarı: %{backtest.summary.day3.positiveRate ?? "-"}</small>
-      </div>
-
-      <div>
-        <span>7 İşlem Günü</span>
-        <strong>{renderPerformance(backtest.summary.day7.average)}</strong>
-        <small>Başarı: %{backtest.summary.day7.positiveRate ?? "-"}</small>
-      </div>
-
-      <div>
-        <span>30 İşlem Günü</span>
-        <strong>{renderPerformance(backtest.summary.day30.average)}</strong>
-        <small>Başarı: %{backtest.summary.day30.positiveRate ?? "-"}</small>
-      </div>
-    </div>
-
-    <p className="ai-comment">
-      Son 365 gün içinde benzer KAP bildirimleri incelendi. Ortalama getiri ve
-      başarı oranı geçmiş fiyat hareketlerine göre hesaplanmıştır.
-    </p>
-  </div>
-)}
 
                       {impact && (
                         <div className="impact-box">
