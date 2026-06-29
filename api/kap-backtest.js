@@ -12,7 +12,10 @@ function classifyKap(item = {}) {
   }
 
   if (text.includes("kar payı") || text.includes("temettü")) {
-    if (text.includes("dağıtılmaması")) return "Kar Payı Dağıtılmaması";
+    if (text.includes("dağıtılmaması") || text.includes("dağıtmama")) {
+      return "Kar Payı Dağıtılmaması";
+    }
+
     return "Kar Payı";
   }
 
@@ -62,20 +65,28 @@ function similarityScore(current = {}, past = {}) {
   const pastClass = classifyKap(past);
 
   if (currentClass === pastClass) score += 60;
-  if (current.subject && current.subject === past.subject) score += 25;
+
+  if (current.subject && current.subject === past.subject) {
+    score += 25;
+  }
 
   const currentStock = current.stockCodes || current.relatedStocks || "";
   const pastStock = past.stockCodes || past.relatedStocks || "";
 
-  if (currentStock && pastStock && currentStock === pastStock) score += 15;
+  if (currentStock && pastStock && currentStock === pastStock) {
+    score += 15;
+  }
 
   return Math.min(score, 100);
 }
 
 async function getKaps(days = 365, limit = 200) {
   const endDate = new Date();
+
+  // 30 işlem günü sonucunu görebilmek için en yeni haberleri hariç tutuyoruz.
   endDate.setDate(endDate.getDate() - 70);
-  const startDate = new Date();
+
+  const startDate = new Date(endDate);
   startDate.setDate(endDate.getDate() - Number(days));
 
   const formatDate = (date) => date.toISOString().slice(0, 10);
@@ -163,8 +174,12 @@ function performance(data, baseIndex, days) {
   return Number((((end - start) / start) * 100).toFixed(2));
 }
 
+function cleanNumbers(values) {
+  return values.filter((v) => typeof v === "number" && !Number.isNaN(v));
+}
+
 function average(values) {
-  const clean = values.filter((v) => typeof v === "number");
+  const clean = cleanNumbers(values);
 
   if (!clean.length) return null;
 
@@ -173,14 +188,78 @@ function average(values) {
   );
 }
 
+function median(values) {
+  const clean = cleanNumbers(values).sort((a, b) => a - b);
+
+  if (!clean.length) return null;
+
+  const mid = Math.floor(clean.length / 2);
+
+  if (clean.length % 2 === 0) {
+    return Number(((clean[mid - 1] + clean[mid]) / 2).toFixed(2));
+  }
+
+  return Number(clean[mid].toFixed(2));
+}
+
+function minValue(values) {
+  const clean = cleanNumbers(values);
+
+  if (!clean.length) return null;
+
+  return Number(Math.min(...clean).toFixed(2));
+}
+
+function maxValue(values) {
+  const clean = cleanNumbers(values);
+
+  if (!clean.length) return null;
+
+  return Number(Math.max(...clean).toFixed(2));
+}
+
+function standardDeviation(values) {
+  const clean = cleanNumbers(values);
+
+  if (clean.length < 2) return null;
+
+  const avg = clean.reduce((sum, value) => sum + value, 0) / clean.length;
+
+  const variance =
+    clean.reduce((sum, value) => sum + Math.pow(value - avg, 2), 0) /
+    clean.length;
+
+  return Number(Math.sqrt(variance).toFixed(2));
+}
+
 function positiveRate(values) {
-  const clean = values.filter((v) => typeof v === "number");
+  const clean = cleanNumbers(values);
 
   if (!clean.length) return null;
 
   const positive = clean.filter((v) => v > 0).length;
 
   return Number(((positive / clean.length) * 100).toFixed(1));
+}
+
+function buildStats(values) {
+  const clean = cleanNumbers(values);
+
+  return {
+    sampleSize: clean.length,
+    average: average(clean),
+    median: median(clean),
+    min: minValue(clean),
+    max: maxValue(clean),
+    volatility: standardDeviation(clean),
+    positiveRate: positiveRate(clean),
+  };
+}
+
+function buildConsistencyScore(stats) {
+  if (!stats || stats.volatility === null) return null;
+
+  return Math.max(0, Math.min(100, Math.round(100 - stats.volatility * 5)));
 }
 
 export default async function handler(req, res) {
@@ -230,13 +309,15 @@ export default async function handler(req, res) {
       const baseIndex = findBaseIndex(prices, kapDate);
 
       if (baseIndex < 0) continue;
+
       const baseDate = prices[baseIndex].date;
 
-const dayDiff =
-  (new Date(baseDate).getTime() - new Date(kapDate).getTime()) /
-  (1000 * 60 * 60 * 24);
+      const dayDiff =
+        (new Date(baseDate).getTime() - new Date(kapDate).getTime()) /
+        (1000 * 60 * 60 * 24);
 
-if (dayDiff > 5) continue;
+      // KAP tarihi ile ilk bulunan fiyat tarihi arasında çok fark varsa veri sağlıklı değildir.
+      if (dayDiff > 5) continue;
 
       results.push({
         symbol,
@@ -263,6 +344,11 @@ if (dayDiff > 5) continue;
     const day7 = results.map((r) => r.performance.day7);
     const day30 = results.map((r) => r.performance.day30);
 
+    const day1Stats = buildStats(day1);
+    const day3Stats = buildStats(day3);
+    const day7Stats = buildStats(day7);
+    const day30Stats = buildStats(day30);
+
     return res.status(200).json({
       success: true,
       currentClass,
@@ -271,22 +357,21 @@ if (dayDiff > 5) continue;
       similarKapCount: similarKaps.length,
       analyzedCount: results.length,
       summary: {
-        day1: {
-          average: average(day1),
-          positiveRate: positiveRate(day1),
-        },
-        day3: {
-          average: average(day3),
-          positiveRate: positiveRate(day3),
-        },
-        day7: {
-          average: average(day7),
-          positiveRate: positiveRate(day7),
-        },
-        day30: {
-          average: average(day30),
-          positiveRate: positiveRate(day30),
-        },
+        day1: day1Stats,
+        day3: day3Stats,
+        day7: day7Stats,
+        day30: day30Stats,
+      },
+      statistics: {
+        bestDay1: day1Stats.max,
+        worstDay1: day1Stats.min,
+        bestDay7: day7Stats.max,
+        worstDay7: day7Stats.min,
+        consistencyScore: buildConsistencyScore(day7Stats),
+        medianDay1: day1Stats.median,
+        medianDay3: day3Stats.median,
+        medianDay7: day7Stats.median,
+        medianDay30: day30Stats.median,
       },
       results,
     });
