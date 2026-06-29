@@ -10,6 +10,8 @@ export default function App() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [backtest, setBacktest] = useState(null);
+const [backtestLoading, setBacktestLoading] = useState(false);
 
   useEffect(() => {
     loadNews();
@@ -44,6 +46,32 @@ export default function App() {
   }
 
   async function openDetail(item) {
+    setBacktestLoading(true);
+
+try {
+  const params = new URLSearchParams({
+    subject: item.subject || "",
+    summary: item.summary || "",
+    stockCodes: item.stockCodes || "",
+    days: "365",
+    minSimilarity: "70",
+    maxAnalyze: "20",
+  });
+
+  const bt = await fetch("/api/kap-backtest?" + params);
+
+  const btJson = await bt.json();
+
+  if (btJson.success) {
+    setBacktest(btJson);
+  } else {
+    setBacktest(null);
+  }
+} catch {
+  setBacktest(null);
+}
+
+setBacktestLoading(false);
     setDetailLoading(true);
     setSelected(item);
     setImpact(null);
@@ -224,7 +252,7 @@ export default function App() {
       {selected && (
         <div className="modal">
           <div className="modal-content">
-            <button onClick={() => setSelected(null)}>X</button>
+            <button onClick={() => setBacktest(null)}>X</button>
 
             {detailLoading ? (
               <h2>Yükleniyor...</h2>
@@ -254,6 +282,56 @@ export default function App() {
 
                         <p>{analysis.summary}</p>
                       </div>
+                      {backtestLoading && (
+  <div className="impact-box">
+    <h4>🤖 AI Backtest yükleniyor...</h4>
+  </div>
+)}
+
+{backtest && (
+  <div className="impact-box">
+    <h4>🤖 AI Backtest Analizi</h4>
+
+    <p>
+      <strong>Benzer Haber:</strong> {backtest.analyzedCount} adet
+    </p>
+
+    <p>
+      <strong>Kategori:</strong> {backtest.currentClass}
+    </p>
+
+    <div className="impact-grid">
+      <div>
+        <span>1 İşlem Günü</span>
+        <strong>{renderPerformance(backtest.summary.day1.average)}</strong>
+        <small>Başarı: %{backtest.summary.day1.positiveRate ?? "-"}</small>
+      </div>
+
+      <div>
+        <span>3 İşlem Günü</span>
+        <strong>{renderPerformance(backtest.summary.day3.average)}</strong>
+        <small>Başarı: %{backtest.summary.day3.positiveRate ?? "-"}</small>
+      </div>
+
+      <div>
+        <span>7 İşlem Günü</span>
+        <strong>{renderPerformance(backtest.summary.day7.average)}</strong>
+        <small>Başarı: %{backtest.summary.day7.positiveRate ?? "-"}</small>
+      </div>
+
+      <div>
+        <span>30 İşlem Günü</span>
+        <strong>{renderPerformance(backtest.summary.day30.average)}</strong>
+        <small>Başarı: %{backtest.summary.day30.positiveRate ?? "-"}</small>
+      </div>
+    </div>
+
+    <p className="ai-comment">
+      Son 365 gün içinde benzer KAP bildirimleri incelendi. Ortalama getiri ve
+      başarı oranı geçmiş fiyat hareketlerine göre hesaplanmıştır.
+    </p>
+  </div>
+)}
 
                       {impact && (
                         <div className="impact-box">

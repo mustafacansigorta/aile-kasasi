@@ -314,3 +314,16 @@ footer {
 .impact-grid strong {
   font-size: 18px;
 }
+.impact-grid small {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.ai-comment {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+}
