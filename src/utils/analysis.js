@@ -22,7 +22,13 @@ export function analyzeDisclosure(item = {}) {
   let aiSummary =
     "Bu bildirim bilgilendirme amaçlıdır. Hisse etkisi detay inceleme gerektirir.";
 
-  if (text.includes("yeni iş ilişkisi") || text.includes("sözleşme")) {
+  if (text.includes("esas sözleşme") || text.includes("ana sözleşme")) {
+  score = 35;
+  effect = "Nötr";
+  badge = "neutral";
+  aiSummary =
+    "Esas sözleşme bildirimi. Genellikle teknik veya yönetimsel niteliktedir; doğrudan güçlü fiyat etkisi beklenmez.";
+} else if (text.includes("yeni iş ilişkisi")) {
     score = 90;
     effect = "Pozitif";
     badge = "positive";
@@ -103,9 +109,22 @@ export function classifyKap(item = {}) {
   const summary = item.summary || "";
   const text = `${subject} ${summary}`.toLowerCase();
 
-  if (text.includes("yeni iş ilişkisi") || text.includes("sözleşme")) {
-    return "Yeni İş İlişkisi";
-  }
+  if (text.includes("esas sözleşme") || text.includes("ana sözleşme")) {
+  return "Esas Sözleşme";
+}
+
+if (text.includes("yeni iş ilişkisi")) {
+  return "Yeni İş İlişkisi";
+}
+
+if (
+  text.includes("satış sözleşmesi") ||
+  text.includes("tedarik sözleşmesi") ||
+  text.includes("iş sözleşmesi") ||
+  text.includes("sözleşme imzalan")
+) {
+  return "Sözleşme / İş İlişkisi";
+}
 
   if (text.includes("ihale")) {
     return "İhale";
