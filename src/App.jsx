@@ -11,6 +11,9 @@ export default function App() {
   const [backtest, setBacktest] = useState(null);
   const [tradeSetup, setTradeSetup] = useState(null);
 
+  const [marketScan, setMarketScan] = useState(null);
+  const [marketScanLoading, setMarketScanLoading] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [backtestLoading, setBacktestLoading] = useState(false);
@@ -21,6 +24,7 @@ export default function App() {
 
   useEffect(() => {
     loadNews();
+    loadMarketScan();
   }, []);
 
   async function loadNews() {
@@ -48,6 +52,26 @@ export default function App() {
       console.log(e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMarketScan() {
+    try {
+      setMarketScanLoading(true);
+
+      const res = await fetch("/api/scan-market");
+      const json = await res.json();
+
+      if (json.success) {
+        setMarketScan(json);
+      } else {
+        setMarketScan(null);
+      }
+    } catch (e) {
+      console.log(e);
+      setMarketScan(null);
+    } finally {
+      setMarketScanLoading(false);
     }
   }
 
@@ -272,6 +296,57 @@ export default function App() {
       </div>
 
       <section className="section">
+        <h2>📡 Gün İçi Tarama</h2>
+
+        {marketScanLoading && <h3>Tarama yükleniyor...</h3>}
+
+        {!marketScanLoading && marketScan && (
+          <>
+            <div className="summary-grid scanner-summary">
+              <div>
+                <strong>{marketScan.summary.buy}</strong>
+                <span>BUY</span>
+              </div>
+
+              <div>
+                <strong>{marketScan.summary.watch}</strong>
+                <span>WATCH</span>
+              </div>
+
+              <div>
+                <strong>{marketScan.summary.weakWatch}</strong>
+                <span>Zayıf Takip</span>
+              </div>
+
+              <div>
+                <strong>{marketScan.summary.avoid}</strong>
+                <span>Uzak Dur</span>
+              </div>
+            </div>
+
+            <div className="scanner-list">
+              {marketScan.results.slice(0, 5).map((item) => (
+                <div className={`scanner-card ${item.action}`} key={item.symbol}>
+                  <div>
+                    <h3>{item.symbol}</h3>
+                    <p>{item.status}</p>
+                    <small>
+                      Fiyat: {item.price} TL | Günlük: %{item.dayChange}
+                    </small>
+                  </div>
+
+                  <div className="scanner-score">
+                    <strong>{item.score}</strong>
+                    <span>{item.action}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="section">
         <h2>🤖 AI Fırsat Merkezi</h2>
 
         {loading && <h3>Yükleniyor...</h3>}
@@ -459,30 +534,32 @@ export default function App() {
                           <h4>📡 Gün İçi Trade Setup</h4>
 
                           <div className={`ai-result ${tradeSetup.level}`}>
-  <h2>{tradeSetup.status}</h2>
-  <h1>{tradeSetup.score}/100</h1>
-  <p>İşlem Kalitesi</p>
+                            <h2>{tradeSetup.status}</h2>
+                            <h1>{tradeSetup.score}/100</h1>
+                            <p>İşlem Kalitesi</p>
 
-  <p>
-    <strong>Aksiyon:</strong> {tradeSetup.action}
-  </p>
+                            <p>
+                              <strong>Aksiyon:</strong> {tradeSetup.action}
+                            </p>
 
-  <p>
-    <strong>Risk:</strong> {tradeSetup.risk}
-  </p>
+                            <p>
+                              <strong>Risk:</strong> {tradeSetup.risk}
+                            </p>
 
-  <p>
-    <strong>Güven:</strong> {tradeSetup.confidence}/100
-  </p>
+                            <p>
+                              <strong>Güven:</strong>{" "}
+                              {tradeSetup.confidence}/100
+                            </p>
 
-  <p>
-    <strong>Trend:</strong> {tradeSetup.trend}
-  </p>
+                            <p>
+                              <strong>Trend:</strong> {tradeSetup.trend}
+                            </p>
 
-  <p>
-    <strong>Kısa Vade:</strong> {tradeSetup.shortTerm}
-  </p>
-</div>
+                            <p>
+                              <strong>Kısa Vade:</strong>{" "}
+                              {tradeSetup.shortTerm}
+                            </p>
+                          </div>
 
                           <h4>Sebepler</h4>
                           <ul>

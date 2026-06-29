@@ -420,3 +420,75 @@ footer {
 .ai-result.weak {
   background: #fee2e2;
 }
+.scanner-summary {
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 16px;
+}
+
+.scanner-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scanner-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.scanner-card h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.scanner-card p {
+  margin: 4px 0;
+  font-weight: 700;
+}
+
+.scanner-card small {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.scanner-score {
+  min-width: 78px;
+  text-align: center;
+  border-radius: 16px;
+  padding: 10px;
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.scanner-score strong {
+  display: block;
+  font-size: 26px;
+}
+
+.scanner-score span {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.scanner-card.BUY {
+  background: #ecfdf5;
+}
+
+.scanner-card.WATCH {
+  background: #eff6ff;
+}
+
+.scanner-card.WEAK_WATCH {
+  background: #fffbeb;
+}
+
+.scanner-card.AVOID {
+  background: #fef2f2;
+}
